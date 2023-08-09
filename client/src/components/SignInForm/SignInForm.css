@@ -1,0 +1,72 @@
+.sign-in-form-wrapper {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 5rem;
+    display: flex;
+    border-radius: 10px;
+    background: linear-gradient(to bottom right, #3c31a1 10%, #9844fc 100%);
+}
+
+.sign-in-form-heading {
+    color: #fff;
+}
+
+.sign-in-form {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.sign-in-input-wrapper input {
+    border: none;
+    outline: none;
+    padding: 0.4rem 1rem;
+    margin-top: 1rem;
+    width: 100%;
+    background: transparent;
+    border-bottom: 1px solid gray;
+    transition: border-bottom 0.5s;
+    color: #fff;
+}
+
+.sign-in-input-wrapper input:hover {
+    border-bottom: 1px solid white;
+}
+
+.sign-in-input-wrapper input::placeholder {
+    font-size: 14px;
+    color: #fff;
+}
+
+.sign-in-bth-wrapper {
+    width: 100%;
+}
+
+.sign-in-btn {
+    border: none;
+    outline: none;
+    padding: 0.4rem 1rem;
+    margin-top: 4rem;
+    width: 80%;
+    border-radius: 5px;
+    background-color: #fff;
+    color: #9844fc;
+    font-weight: 500;
+}
+
+.sign-in-btn:hover {
+    transition: transform .3s ease-in-out;
+    transform: scale(1.04)
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+    transition: background-color 5000s ease-in-out 0s;
+    -webkit-text-fill-color: rgb(255, 255, 255) !important;
+}

@@ -1,0 +1,94 @@
+.sign-up-form-wrapper {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 80%;
+    padding: 5rem;
+    display: flex;
+    border-radius: 10px;
+    background: linear-gradient(to bottom right, #3c31a1 10%, #9844fc 100%);
+}
+
+.sign-up-form-heading {
+    color: #fff;
+}
+
+.sign-up-form {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.sign-up-input-wrapper input {
+    border: none;
+    outline: none;
+    padding: 0.4rem 1rem;
+    margin-top: 1rem;
+    width: 100%;
+    background: transparent;
+    border-bottom: 1px solid gray;
+    transition: border-bottom 0.5s;
+    color: #fff;
+}
+
+.sign-up-input-wrapper input:hover {
+    border-bottom: 1px solid white;
+}
+
+.sign-up-input-wrapper input::placeholder {
+    font-size: 14px;
+    color: #fff;
+}
+
+.sign-up-input-names {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.sign-up-input-names input {
+    width: 48%;
+}
+
+.sign-up-bth-wrapper {
+    width: 100%;
+}
+
+.sign-up-btn {
+    border: none;
+    outline: none;
+    padding: 0.4rem 1rem;
+    margin-top: 4rem;
+    width: 80%;
+    border-radius: 5px;
+    background-color: #fff;
+    color: #9844fc;
+    font-weight: 500;
+}
+
+.sign-up-btn:hover {
+    transition: transform .3s ease-in-out;
+    transform: scale(1.04)
+}
+
+.sign-up-form-msg {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.sign-up-form-msg span {
+    color: #fff;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+    transition: background-color 5000s ease-in-out 0s;
+    -webkit-text-fill-color: rgb(255, 255, 255) !important;
+}

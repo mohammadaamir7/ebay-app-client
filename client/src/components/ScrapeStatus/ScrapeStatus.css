@@ -1,0 +1,114 @@
+.scrape-control-status-wrapper {
+    flex: 1;
+    height: 100%;
+    padding: 5rem 3rem 0 0;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    flex-direction: column;
+}
+
+.scrape-control-status {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    background: linear-gradient(to bottom right, #3268e8, #d435e2);
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0px .4rem .8rem 0px rgba(0, 0, 0, 0.249);
+    width: 90%;
+}
+
+.scrape-control-status div {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    flex: 1;
+    border-radius: 6px;
+    padding: 12px;
+    box-shadow: 0px .4rem .8rem 0px rgba(0, 0, 0, 0.249);
+    color: #fff;
+    z-index: 0;
+    backdrop-filter: blur(60px);
+    margin: 10px;
+}
+
+.scrape-control-status div span:first-child {
+    margin: 0 0 1rem 0;
+    font-size: 17px;
+    font-weight: 500;
+}
+
+.scrape-control-status div span:last-child {
+    width: 70%;
+    padding: 5px 10px;
+    color: #fff;
+    border-radius: 5px;
+    text-align: center;
+    font-size: 17px;
+    border: 1px solid #fff;
+    box-shadow: 0px .4rem .8rem 0px rgba(0, 0, 0, 0.249);
+    backdrop-filter: blur(50px);
+}
+
+.scrape-control-status div span:last-child:hover {
+    transition: transform .3s ease-in-out;
+    transform: scale(1.05)
+}
+
+.scrape-main-control-wrapper {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    width: 90%;
+    margin: 10rem 0 0 0;
+    height: 20%;
+    background: linear-gradient(to bottom right, #3268e8, #d435e2);
+    box-shadow: 0px .4rem .8rem 0px rgba(0, 0, 0, 0.249);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.scrape-main-control-status {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 30%;
+    background: linear-gradient(to bottom right, #da1d7c, #124e9c);
+    box-shadow: 0px .4rem .8rem 0px rgba(0, 0, 0, 0.249);
+    color: #fff;
+    height: 4rem;
+    border-radius: 15px;
+    font-size: 18px;
+}
+
+.scrape-main-control-btn {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 50%;
+}
+
+.scrape-main-control-btn button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: none;
+    margin-left: 3rem;
+    background: linear-gradient(to bottom right, #da1d7c, #124e9c);
+    color: #fff;
+    padding: 18px 20px;
+    border-radius: 50px;
+    box-shadow: 0px .4rem .8rem 0px rgba(0, 0, 0, 0.249);
+}
+
+.scrape-main-control-btn button img {
+    filter: invert(1);
+    height: 20px;
+}
+
+.scrape-main-control-btn button:hover {
+    transition: transform .3s ease-in-out;
+    transform: scale(1.05)
+}

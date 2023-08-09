@@ -1,0 +1,4 @@
+{
+    "DOMAIN": "http://localhost:5000",
+    "API_PREFIX": "/api"
+}

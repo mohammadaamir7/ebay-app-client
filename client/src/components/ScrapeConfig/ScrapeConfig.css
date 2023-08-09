@@ -1,0 +1,57 @@
+.scrape-control-config-wrapper {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 2.5rem 0 0 5rem;
+    flex: 1;
+    height: 100%;
+}
+
+.scrape-control-config-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 80%;
+    margin-bottom: 0.5rem;
+}
+
+.scrape-control-config-heading {
+    margin: 0 0 1rem 0;
+    font-size: 17px;
+    font-weight: 500;
+}
+
+.scrape-control-config-save-btn {
+    border: none;
+    padding: 6px 30px;
+    border-radius: 6px;
+    background-color: rgb(39, 220, 159);
+    box-shadow: 0px .4rem .8rem 0px rgba(0, 0, 0, 0.249);
+    color: #fff;
+    font-weight: 500;
+    width: 22%;
+}
+
+.scrape-control-config-save-btn:hover {
+    transition: transform .3s ease-in-out;
+    transform: scale(1.05)
+} 
+
+.scrape-control-config-area {
+    resize: none;
+    overflow: auto;
+    width: 80%;
+    height: 80%;
+    cursor: text;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1.5px solid #989393;
+}
+
+.scrape-control-config-area:focus {
+    outline: none;
+    border: 1.5px solid blueviolet;
+    box-shadow: 0px .4rem .8rem 0px rgba(0, 0, 0, 0.249);
+    transition: box-shadow 0.5s;
+}

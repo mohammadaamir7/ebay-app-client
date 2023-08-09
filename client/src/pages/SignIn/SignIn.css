@@ -1,0 +1,9 @@
+.sign-in-wrapper {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    flex: 1;
+    margin-left: 100px;
+}

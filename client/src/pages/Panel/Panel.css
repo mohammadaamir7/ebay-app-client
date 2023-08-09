@@ -1,0 +1,22 @@
+.panel-wrapper {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    margin-left: 100px;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 3rem 2rem 0rem 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1.5px solid #989393;
+}
+
+.panel-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 32%;
+}
