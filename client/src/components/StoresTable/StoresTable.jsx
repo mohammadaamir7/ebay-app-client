@@ -7,10 +7,13 @@ import {
     getConfigInfo,
     getSearchInfo,
     updateFilter,
-    updateItemEditPageActive
+    updateItemEditPageActive,
+    getListingsInfo,
+    getSuppliers,
+    getStores
 } from '../../features/panelSlice';
 
-import "./PanelTable.css";
+import "./StoresTable.css";
 import io from "socket.io-client";
 import config from "../../config.json"
 
@@ -49,15 +52,9 @@ import USERLIST from '../../_mock/user';
 // ----------------------------------------------------------------------
 
 const TABLE_HEAD = [
-  { id: 'image', label: 'Image', alignRight: false },
-  { id: 'site', label: 'Site', alignRight: false },
-  { id: 'brand', label: 'Brand', alignRight: false },
-  { id: 'itemNumber', label: 'Item Number', alignRight: false },
-  { id: 'title', label: 'Title', alignRight: false },
-  { id: 'price', label: 'Price', alignRight: false },
-  { id: 'quantity', label: 'Quantity', alignRight: false },
-//   { id: 'isVerified', label: 'Verified', alignRight: false },
-//   { id: 'status', label: 'Status', alignRight: false },
+  { id: 'name', label: 'Supplier', alignRight: false },
+  { id: 'email', label: 'Email', alignRight: false },
+  { id: 'supliers', label: 'Suppliers', alignRight: false },
   { id: '' },
 ];
 
@@ -106,7 +103,8 @@ const PanelTable = () => {
         selectedBrand,
         searchTerm,
         searchStatus,
-        itemEditPageActive
+        itemEditPageActive,
+        stores
     } = useSelector(state => state.panel);
 
     const [currentPage, setCurrentPage] = useState(1);
@@ -119,34 +117,9 @@ const PanelTable = () => {
         if (searchTerm.length > 0) {
             handleSearch();
         } else {
-            dispatch(getitemInfo({page: currentPage, limit: limit}));
+            dispatch(getStores({page: currentPage, limit: limit}));
         }
     }, [currentPage]);
-
-    useEffect(() => {
-      socket.on("connect", () => {
-        console.log("Connected to server");
-      });
-
-      socket.on("disconnect", () => {
-        console.log("Disconnected from server");
-      });
-
-      socket.on("sync-listings", (data) => {
-        console.log(data);
-        dispatch(getSearchInfo({
-            term: searchTerm,
-            site: selectedSite,
-            brand: selectedBrand,
-            page: currentPage,
-            limit: limit
-        }));
-      });
-
-      return () => {
-        socket.disconnect();
-      };
-    }, [socket]);
 
     const [open, setOpen] = useState(null);
     const [selectedItem, setSelectedItem] = useState(null);
@@ -251,6 +224,8 @@ const PanelTable = () => {
     const handleSync = () => {
        socket.emit("sync-listings", { site: selectedSite });
     }
+    const handleImport = () => {};
+    const handleExport = () => {};
 
     const handleItemEditBtn = (item) => {
         dispatch(updateItemEditPageActive(item));
@@ -261,80 +236,11 @@ const PanelTable = () => {
       <>
       <div className="panel-table">
           <div className="panel-data-control">
-            <div className="panel-table-search">
-              <input
-                type="text"
-                className="panel-data-control-search"
-                placeholder="Search..."
-                value={searchTerm}
-                onChange={(event) => handleFilterChange(event, "term")}
-              />
-            </div>
             <div className="panel-table-control">
-              <div className="panel-table-filter">
-                <select
-                  className="panel-site-selector"
-                  value={selectedSite}
-                  onChange={(event) => handleFilterChange(event, "site")}
-                >
-                  <option value="" hidden defaultChecked>
-                    Choose Site
-                  </option>
-                  <option value="">None</option>
-                  {sites &&
-                    sites.map((obj) => {
-                      return (
-                        <option key={obj.site} value={obj.site}>
-                          {obj.site}
-                        </option>
-                      );
-                    })}
-                </select>
-                <select
-                  className="panel-brand-selector"
-                  value={selectedBrand}
-                  onChange={(event) => handleFilterChange(event, "brand")}
-                >
-                  <option value="" hidden defaultChecked>
-                    Choose Brand
-                  </option>
-                  <option value="">None</option>
-                  {sites &&
-                    sites.map((obj) => {
-                      if (selectedSite && obj.site !== selectedSite) {
-                        return null;
-                      }
-                      return obj.brands.map((brand) => (
-                        <option key={brand} value={brand}>
-                          {brand}
-                        </option>
-                      ));
-                    })}
-                </select>
-                <div className="panel-price-selector">
-                  <input
-                    type="number"
-                    className="panel-data-control-price"
-                    placeholder="Min Price"
-                  />
-                  <input
-                    type="number"
-                    className="panel-data-control-price"
-                    placeholder="Max Price"
-                  />
-                </div>
-              </div>
               <div className="panel-table-search-btn">
                 <div className="panel-search">
-                  <Button variant="contained" className="panel-search-btn" onClick={handleSearch}>
-                    Search
-                  </Button>
-                </div>
-              </div>
-              <div className="panel-table-search-btn">
-                <div className="panel-search">
-                  <Button variant="contained" className="panel-search-btn" onClick={handleSync}>
-                    Sync Listings
+                  <Button onClick={() => navigate("/add-store")} variant="contained">
+                    Add Store
                   </Button>
                 </div>
               </div>
@@ -371,7 +277,7 @@ const PanelTable = () => {
             mb={5}
           >
             <Typography variant="h4" gutterBottom>
-              Scraped Data
+              Stores
             </Typography>
           </Stack>
 
@@ -388,78 +294,25 @@ const PanelTable = () => {
                   onSelectAllClick={handleSelectAllClick}
                 />
                 <TableBody>
-                  {filteredUsers
-                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                    .map((row) => {
-                      const {
-                        id,
-                        name,
-                        role,
-                        status,
-                        company,
-                        avatarUrl,
-                        isVerified,
-                      } = row;
-                      const selectedUser = selected.indexOf(name) !== -1;
-
                       {
-                        return pageItems.map((item) => (
+                         stores && stores.map((item) => (
                           <TableRow
                             hover
                             key={item._id}
                             tabIndex={-1}
                             role="checkbox"
-                            selected={selectedUser}
+                            // selected={selectedUser}
                           >
                             <TableCell padding="checkbox">
                               <Checkbox
-                                checked={selectedUser}
-                                onChange={(event) => handleClick(event, name)}
+                                // checked={selectedUser}
+                                // onChange={(event) => handleClick(event, name)}
                               />
                             </TableCell>
 
-                            <TableCell
-                              component="th"
-                              scope="row"
-                              padding="none"
-                            >
-                              <Stack
-                                direction="row"
-                                alignItems="center"
-                                spacing={2}
-                              >
-                                <Avatar alt={name} src={avatarUrl} />
-                              </Stack>
-                            </TableCell>
-
-                            <TableCell align="left">{item.site}</TableCell>
-                            <TableCell align="left">{item.brand}</TableCell>
-
-                            <TableCell align="left">
-                              {item.itemNumber}
-                            </TableCell>
-                            <TableCell align="left">
-                              {item.productName}
-                            </TableCell>
-                            <TableCell align="left">{item.price}</TableCell>
-                            <TableCell align="left">
-                              {item.availableUnits}
-                            </TableCell>
-{/* 
-                            <TableCell align="left">
-                              {isVerified ? "Yes" : "No"}
-                            </TableCell>
-
-                            <TableCell align="left">
-                              <Label
-                                color={
-                                  (status === "banned" && "error") || "success"
-                                }
-                              >
-                                {sentenceCase(status)}
-                              </Label>
-                            </TableCell> */}
-
+                            <TableCell align="left">{item?.name}</TableCell>
+                            <TableCell align="left">{item?.email}</TableCell>
+                            <TableCell align="left">{item?.Suppliers.map(supplier => supplier.name)}</TableCell>
                             <TableCell align="right">
                               <IconButton
                                 size="large"
@@ -470,9 +323,9 @@ const PanelTable = () => {
                               </IconButton>
                             </TableCell>
                           </TableRow>
-                        ));
+                        ))
                       }
-                    })}
+                    
                   {emptyRows > 0 && (
                     <TableRow style={{ height: 53 * emptyRows }}>
                       <TableCell colSpan={6} />
@@ -537,7 +390,7 @@ const PanelTable = () => {
             },
           }}
         >
-          <MenuItem onClick={() => navigate(`/item-edit/${selectedItem}`)}>
+          <MenuItem onClick={() => navigate(`/store-edit/${selectedItem}`)}>
             <Iconify icon={"eva:edit-fill"} sx={{ mr: 2 }} />
             Edit
           </MenuItem>

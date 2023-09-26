@@ -7,10 +7,11 @@ import {
     getConfigInfo,
     getSearchInfo,
     updateFilter,
-    updateItemEditPageActive
+    updateItemEditPageActive,
+    getListingsInfo
 } from '../../features/panelSlice';
 
-import "./PanelTable.css";
+import "./EbayItemsTable.css";
 import io from "socket.io-client";
 import config from "../../config.json"
 
@@ -49,12 +50,12 @@ import USERLIST from '../../_mock/user';
 // ----------------------------------------------------------------------
 
 const TABLE_HEAD = [
-  { id: 'image', label: 'Image', alignRight: false },
-  { id: 'site', label: 'Site', alignRight: false },
   { id: 'brand', label: 'Brand', alignRight: false },
-  { id: 'itemNumber', label: 'Item Number', alignRight: false },
+  { id: 'itemId', label: 'Item Id', alignRight: false },
+  { id: 'sku', label: 'SKU', alignRight: false },
+  { id: 'oem', label: 'OEM', alignRight: false },
   { id: 'title', label: 'Title', alignRight: false },
-  { id: 'price', label: 'Price', alignRight: false },
+  { id: 'startPrice', label: 'Start Price', alignRight: false },
   { id: 'quantity', label: 'Quantity', alignRight: false },
 //   { id: 'isVerified', label: 'Verified', alignRight: false },
 //   { id: 'status', label: 'Status', alignRight: false },
@@ -106,7 +107,8 @@ const PanelTable = () => {
         selectedBrand,
         searchTerm,
         searchStatus,
-        itemEditPageActive
+        itemEditPageActive,
+        listings
     } = useSelector(state => state.panel);
 
     const [currentPage, setCurrentPage] = useState(1);
@@ -119,7 +121,7 @@ const PanelTable = () => {
         if (searchTerm.length > 0) {
             handleSearch();
         } else {
-            dispatch(getitemInfo({page: currentPage, limit: limit}));
+            dispatch(getListingsInfo({page: currentPage, limit: limit}));
         }
     }, [currentPage]);
 
@@ -251,6 +253,8 @@ const PanelTable = () => {
     const handleSync = () => {
        socket.emit("sync-listings", { site: selectedSite });
     }
+    const handleImport = () => {};
+    const handleExport = () => {};
 
     const handleItemEditBtn = (item) => {
         dispatch(updateItemEditPageActive(item));
@@ -261,7 +265,7 @@ const PanelTable = () => {
       <>
       <div className="panel-table">
           <div className="panel-data-control">
-            <div className="panel-table-search">
+            {/* <div className="panel-table-search">
               <input
                 type="text"
                 className="panel-data-control-search"
@@ -269,7 +273,7 @@ const PanelTable = () => {
                 value={searchTerm}
                 onChange={(event) => handleFilterChange(event, "term")}
               />
-            </div>
+            </div> */}
             <div className="panel-table-control">
               <div className="panel-table-filter">
                 <select
@@ -290,7 +294,7 @@ const PanelTable = () => {
                       );
                     })}
                 </select>
-                <select
+                {/* <select
                   className="panel-brand-selector"
                   value={selectedBrand}
                   onChange={(event) => handleFilterChange(event, "brand")}
@@ -322,19 +326,33 @@ const PanelTable = () => {
                     className="panel-data-control-price"
                     placeholder="Max Price"
                   />
-                </div>
+                </div> */}
               </div>
-              <div className="panel-table-search-btn">
+              {/* <div className="panel-table-search-btn">
                 <div className="panel-search">
                   <Button variant="contained" className="panel-search-btn" onClick={handleSearch}>
                     Search
                   </Button>
                 </div>
+              </div> */}
+              <div className="panel-table-search-btn">
+                <div className="panel-search">
+                  <Button variant="contained" onClick={handleSync}>
+                    Sync Listings
+                  </Button>
+                </div>
               </div>
               <div className="panel-table-search-btn">
                 <div className="panel-search">
-                  <Button variant="contained" className="panel-search-btn" onClick={handleSync}>
-                    Sync Listings
+                  <Button variant="contained" onClick={handleImport}>
+                    Listings Import
+                  </Button>
+                </div>
+              </div>
+              <div className="panel-table-search-btn">
+                <div className="panel-search">
+                  <Button variant="contained" onClick={handleExport}>
+                    Listings Export
                   </Button>
                 </div>
               </div>
@@ -371,7 +389,7 @@ const PanelTable = () => {
             mb={5}
           >
             <Typography variant="h4" gutterBottom>
-              Scraped Data
+              Ebay Listings
             </Typography>
           </Stack>
 
@@ -388,63 +406,37 @@ const PanelTable = () => {
                   onSelectAllClick={handleSelectAllClick}
                 />
                 <TableBody>
-                  {filteredUsers
-                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                    .map((row) => {
-                      const {
-                        id,
-                        name,
-                        role,
-                        status,
-                        company,
-                        avatarUrl,
-                        isVerified,
-                      } = row;
-                      const selectedUser = selected.indexOf(name) !== -1;
-
                       {
-                        return pageItems.map((item) => (
+                         listings && listings.map((item) => (
                           <TableRow
                             hover
                             key={item._id}
                             tabIndex={-1}
                             role="checkbox"
-                            selected={selectedUser}
+                            // selected={selectedUser}
                           >
                             <TableCell padding="checkbox">
                               <Checkbox
-                                checked={selectedUser}
-                                onChange={(event) => handleClick(event, name)}
+                                // checked={selectedUser}
+                                // onChange={(event) => handleClick(event, name)}
                               />
                             </TableCell>
 
-                            <TableCell
-                              component="th"
-                              scope="row"
-                              padding="none"
-                            >
-                              <Stack
-                                direction="row"
-                                alignItems="center"
-                                spacing={2}
-                              >
-                                <Avatar alt={name} src={avatarUrl} />
-                              </Stack>
-                            </TableCell>
 
-                            <TableCell align="left">{item.site}</TableCell>
                             <TableCell align="left">{item.brand}</TableCell>
+                            <TableCell align="left">{item.itemId}</TableCell>
 
                             <TableCell align="left">
-                              {item.itemNumber}
+                              {item.sku}
                             </TableCell>
                             <TableCell align="left">
-                              {item.productName}
+                              {item.oem}
                             </TableCell>
-                            <TableCell align="left">{item.price}</TableCell>
+                            <TableCell align="left">{item.title}</TableCell>
                             <TableCell align="left">
-                              {item.availableUnits}
+                              {item.startPrice}
                             </TableCell>
+                            <TableCell align="left">{item.quantity}</TableCell>
 {/* 
                             <TableCell align="left">
                               {isVerified ? "Yes" : "No"}
@@ -470,9 +462,9 @@ const PanelTable = () => {
                               </IconButton>
                             </TableCell>
                           </TableRow>
-                        ));
+                        ))
                       }
-                    })}
+                    
                   {emptyRows > 0 && (
                     <TableRow style={{ height: 53 * emptyRows }}>
                       <TableCell colSpan={6} />
@@ -537,7 +529,7 @@ const PanelTable = () => {
             },
           }}
         >
-          <MenuItem onClick={() => navigate(`/item-edit/${selectedItem}`)}>
+          <MenuItem onClick={() => navigate(`/listing-edit/${selectedItem}`)}>
             <Iconify icon={"eva:edit-fill"} sx={{ mr: 2 }} />
             Edit
           </MenuItem>

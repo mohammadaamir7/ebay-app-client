@@ -23,6 +23,86 @@ export const getitemInfo = createAsyncThunk(
     }
 );
 
+export const getListingsInfo = createAsyncThunk(
+    'panel/getListingsInfo',
+    async ({ site, page, limit }, { rejectWithValue }) => {
+        try {
+            const response = await axios.get(
+                `${config.DOMAIN}${config.API_PREFIX}/sites/listings?page=${page}&limit=${limit}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    },
+                }
+            );
+
+            return response.data;
+        } catch (err) {
+            return rejectWithValue(err.response.data);
+        }
+    }
+);
+
+export const getNewListings = createAsyncThunk(
+    'panel/getNewListings',
+    async ({ site }, { rejectWithValue }) => {
+        try {
+            const response = await axios.get(
+                `${config.DOMAIN}${config.API_PREFIX}/sites/newListings?site=${site}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    },
+                }
+            );
+
+            return response.data;
+        } catch (err) {
+            return rejectWithValue(err.response.data);
+        }
+    }
+);
+
+export const getSuppliers = createAsyncThunk(
+    'panel/getSuppliers',
+    async ({ site, page, limit }, { rejectWithValue }) => {
+        try {
+            const response = await axios.get(
+                `${config.DOMAIN}${config.API_PREFIX}/sites/suppliers?page=${page}&limit=${limit}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    },
+                }
+            );
+
+            return response.data;
+        } catch (err) {
+            return rejectWithValue(err.response.data);
+        }
+    }
+);
+
+export const getStores = createAsyncThunk(
+    'panel/getStores',
+    async ({ page, limit }, { rejectWithValue }) => {
+        try {
+            const response = await axios.get(
+                `${config.DOMAIN}${config.API_PREFIX}/sites/stores?page=${page}&limit=${limit}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    },
+                }
+            );
+
+            return response.data;
+        } catch (err) {
+            return rejectWithValue(err.response.data);
+        }
+    }
+);
+
 export const getConfigInfo = createAsyncThunk(
     'panel/getConfigInfo',
     async (_, { rejectWithValue }) => {
@@ -63,10 +143,34 @@ export const getSearchInfo = createAsyncThunk(
     }
 );
 
+export const getSearchListingsInfo = createAsyncThunk(
+    'panel/getSearchListingsInfo',
+    async ({ term, site, brand, page, limit }, { rejectWithValue }) => {
+        try {
+            const response = await axios.get(
+                `${config.DOMAIN}${config.API_PREFIX}/sites/searchListings?term=${term}&page=${page}&limit=${limit}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    },
+                }
+            );
+
+            return response.data;
+        } catch (err) {
+            return rejectWithValue(err.response.data);
+        }
+    }
+);
+
 const panelSlice = createSlice({
     name: 'panel',
     initialState: {
         pageItems: [],
+        listings: [],
+        suppliers: [],
+        stores: [],
+        newListings: [],
         pageLimit: 10,
         page: 1,
         totalpages: 1,
@@ -104,6 +208,32 @@ const panelSlice = createSlice({
             state.status = 'failed';
             state.error = payload;
         },
+        [getListingsInfo.pending]: (state, action) => {
+            state.status = 'loading';
+        },
+        [getListingsInfo.fulfilled]: (state, { payload }) => {
+            state.status = 'succeeded';
+        
+            state.listings = payload.items;
+            state.totalpages = Math.ceil(payload.total / state.pageLimit);
+        },
+        [getListingsInfo.rejected]: (state, { payload }) => {
+            state.status = 'failed';
+            state.error = payload;
+        },
+        [getNewListings.pending]: (state, action) => {
+            state.status = 'loading';
+        },
+        [getNewListings.fulfilled]: (state, { payload }) => {
+            state.status = 'succeeded';
+        
+            state.newListings = payload.items;
+            state.totalpages = Math.ceil(payload.total / state.pageLimit);
+        },
+        [getNewListings.rejected]: (state, { payload }) => {
+            state.status = 'failed';
+            state.error = payload;
+        },
         [getConfigInfo.pending]: (state, action) => {
             state.status = 'loading';
         },
@@ -127,6 +257,48 @@ const panelSlice = createSlice({
         },
         [getSearchInfo.rejected]: (state, { payload }) => {
             state.searchStatus = 'Search Error';
+            state.error = payload;
+        },
+        [getListingsInfo.pending]: (state, action) => {
+            state.searchListingsStatus = 'Loading...';
+        },
+        [getListingsInfo.fulfilled]: (state, { payload }) => {
+            const results = payload.items.length;
+            state.searchListingsStatus = `${results} Results for ${payload.term}`; 
+
+            state.listings = payload.items;
+            state.totalpages = Math.ceil(payload.total / state.pageLimit);
+        },
+        [getListingsInfo.rejected]: (state, { payload }) => {
+            state.searchListingsStatus = 'Search Error';
+            state.error = payload;
+        },
+        [getSuppliers.pending]: (state, action) => {
+            state.getSuppliersStatus = 'Loading...';
+        },
+        [getSuppliers.fulfilled]: (state, { payload }) => {
+            const results = payload.items.length;
+            state.getSuppliersStatus = `${results} Results for suppliers`; 
+
+            state.suppliers = payload.items;
+            state.totalpages = Math.ceil(payload.total / state.pageLimit);
+        },
+        [getSuppliers.rejected]: (state, { payload }) => {
+            state.getSuppliersStatus = 'Search Error';
+            state.error = payload;
+        },
+        [getStores.pending]: (state, action) => {
+            state.getStores = 'Loading...';
+        },
+        [getStores.fulfilled]: (state, { payload }) => {
+            const results = payload.items.length;
+            state.getStores = `${results} Results for stores`; 
+
+            state.stores = payload.items;
+            state.totalpages = Math.ceil(payload.total / state.pageLimit);
+        },
+        [getStores.rejected]: (state, { payload }) => {
+            state.getStores = 'Search Error';
             state.error = payload;
         }
     },

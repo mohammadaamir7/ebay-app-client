@@ -1,5 +1,5 @@
 import React from 'react';
-import {BrowserRouter as Router, Routes, Route} from 'react-router-dom';
+import {BrowserRouter, Routes, Route} from 'react-router-dom';
 import {Provider} from 'react-redux';
 import store from './store';
 
@@ -25,29 +25,41 @@ import Profile from './pages/Profile/Profile';
 import Scrape from './pages/Scrape/Scrape';
 import Panel from './pages/Panel/Panel';
 import ItemEdit from './pages/ItemEdit/ItemEdit';
+import ScrollToTop from './components/scroll-to-top';
+import { StyledChart } from './components/chart';
+import Router from './routes';
+import ThemeProvider from './theme';
+import { HelmetProvider } from 'react-helmet-async';
 
 function App() {
     return (
-        <Provider store={store}>
-            <Router>
-                <div className="App">
-                    <Sidebar/>
-                    <Routes>
-                        <Route path="/sign-in" element={<SignIn config={config}/>}/>
-                        {/* <Route element={<ProtectedRoute />}> */}
-                        <Route path="/profile" element={<Profile/>}/>
-                        <Route path="/scrape" element={<Scrape/>}/>
-                        <Route path="/panel" element={<Panel/>}/>
-                        <Route path="/sign-up" element={<SignUp config={config}/>}/>
-                        <Route path="/item-edit/:id" element={<ItemEdit/>}/>
-                        {/* </Route> */}
-                        {/* <Route element={<ProtectedEdit />}>
-            </Route> */}
-                        <Route path='*' element={<ErrorCode/>}/>
-                    </Routes>
-                </div>
-            </Router>
-        </Provider>
+      <Provider store={store}>
+        <HelmetProvider>
+          <BrowserRouter>
+            <div className="App">
+              <ThemeProvider>
+                <ScrollToTop />
+                <StyledChart />
+                <Router />
+              </ThemeProvider>
+              {/* <Sidebar/> */}
+              {/* <Routes> */}
+              {/* <Route path="/sign-in" element={<SignIn config={config}/>}/> */}
+              {/* <Route element={<ProtectedRoute />}> */}
+              {/* <Route path="/profile" element={<Profile/>}/> */}
+              {/* <Route path="/scrape" element={<Scrape/>}/> */}
+              {/* <Route path="/panel" element={<Panel/>}/> */}
+              {/* <Route path="/sign-up" element={<SignUp config={config}/>}/> */}
+              {/* <Route path="/item-edit/:id" element={<ItemEdit/>}/> */}
+
+              {/* <Route element={<ProtectedEdit />}> */}
+              {/* </Route> */}
+              {/* <Route path='*' element={<ErrorCode/>}/> */}
+              {/* </Routes> */}
+            </div>
+          </BrowserRouter>
+        </HelmetProvider>
+      </Provider>
     );
 }
 

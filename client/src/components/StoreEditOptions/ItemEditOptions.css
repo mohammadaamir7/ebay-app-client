@@ -1,0 +1,92 @@
+.panel-item-edit-options {
+    width: 60%;
+}
+
+.panel-item-fields {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    background-color: #F6F5F8;
+    padding: 2rem;
+    border-radius: 8px;
+    border: 1px solid #c7c2c2;
+    box-shadow: 0px .4rem .8rem 0px rgba(0, 0, 0, 0.142);
+    margin: 2rem;
+
+}
+
+.panel-item-field-title,
+.panel-item-field-description {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    width: 85%;
+    margin: 0.5rem;
+}
+
+.panel-item-field-quantity,
+.panel-item-field-price {
+    display: flex;
+    justify-content: flex-start;
+    width: 85%;
+    margin: 0.5rem;
+}
+
+.panel-item-field-quantity div,
+.panel-item-field-price div {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+.panel-item-field-quantity span,
+.panel-item-field-price span,
+.panel-item-field-title span,
+.panel-item-field-description span {
+    font-size: 16px;
+}
+
+.panel-item-field-quantity div span,
+.panel-item-field-price div span {
+    margin-right: 10px;
+}
+
+.panel-item-field-quantity input,
+.panel-item-field-quantity select,
+.panel-item-field-price input,
+.panel-item-field-title input,
+.panel-item-field-description textarea {
+    border: 1.5px solid #989393;
+    border-radius: 8px;
+    padding: 5px 8px;
+}
+
+.panel-item-field-quantity select,
+.panel-item-field-quantity input,
+.panel-item-field-price input {
+    width: 70%;
+}
+
+.panel-item-field-quantity select {
+    outline: none;
+    margin: 0 0 1rem 0;
+}
+
+.panel-item-field-description textarea {
+    resize: none;
+    height: 280px;
+}
+
+.panel-item-field-price input:focus,
+.panel-item-field-title input:focus,
+.panel-item-field-description textarea:focus {
+    outline: none;
+    border: 1.5px solid blueviolet;
+    box-shadow: 0px .4rem .8rem 0px rgba(0, 0, 0, 0.249);
+    transition: box-shadow 0.5s;
+}
+
