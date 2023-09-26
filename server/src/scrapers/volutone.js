@@ -109,6 +109,7 @@ const scrape = async (initial) => {
         await resetConfig();
         await browser.close();
     }
+    console.log('scraping done...')
 }
 
 const login = async (page, username, password) => {
@@ -255,7 +256,6 @@ const fetchItems = async (page, pageItemsUrls) => {
             itemInfo['inventory'].push(warehouse);
             itemInfo['availableUnits'] += warehouseQuantity;
         });        
-
         // save and update items
         await Item.findOneAndUpdate({ itemNumber: itemInfo.itemNumber }, itemInfo, { upsert: true });
         itemCount++;
