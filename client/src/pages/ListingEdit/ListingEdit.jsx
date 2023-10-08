@@ -6,9 +6,9 @@ import ListingEditOptions from "../../components/ListingEditOptions/ListingEditO
 
 const ListingEdit = () => {
     return (
-        <div className="container p-5">
+        <div className="container">
             <div className="row">
-                <div className="col-md-8">
+                <div className="col-md-12">
                     <ListingEditOptions/>
                 </div>
             </div>

@@ -4,6 +4,7 @@ import { NavLink as RouterLink } from 'react-router-dom';
 import { Box, List, ListItemText } from '@mui/material';
 //
 import { StyledNavItem, StyledNavItemIcon } from './styles';
+import { useTheme } from '@emotion/react';
 
 // ----------------------------------------------------------------------
 
@@ -31,6 +32,7 @@ NavItem.propTypes = {
 
 function NavItem({ item }) {
   const { title, path, icon, info } = item;
+  const theme = useTheme();
 
   return (
     <StyledNavItem
@@ -38,8 +40,8 @@ function NavItem({ item }) {
       to={path}
       sx={{
         '&.active': {
-          color: 'text.primary',
-          bgcolor: 'action.selected',
+          color: '#ffffff',
+          bgcolor: theme.palette.primary.main,
           fontWeight: 'fontWeightBold',
         },
       }}

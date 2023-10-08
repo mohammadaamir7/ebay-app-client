@@ -23,7 +23,7 @@ function RightPanel(props) {
     }
 
     return (
-        <div className="card shadow mt-4">
+        <div className="card shadow mt-3 mb-3">
             <div className="card-body">
                 <h5>Inventory</h5>
                 {(data?.inventory ?? []).map((item, ind) => (

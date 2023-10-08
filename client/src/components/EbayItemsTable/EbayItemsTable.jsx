@@ -1,23 +1,26 @@
-import React, {useState, useEffect, useRef} from "react";
-import {Link, useNavigate} from 'react-router-dom';
-
-import {useSelector, useDispatch} from 'react-redux';
+import React, { useState, useEffect, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { useSelector, useDispatch } from "react-redux";
 import {
-    getitemInfo,
-    getConfigInfo,
-    getSearchInfo,
-    updateFilter,
-    updateItemEditPageActive,
-    getListingsInfo
-} from '../../features/panelSlice';
+  getitemInfo,
+  getConfigInfo,
+  updateFilter,
+  updateItemEditPageActive,
+  getListingsInfo,
+  getStores,
+  getSuppliers,
+  deleteListing,
+} from "../../features/panelSlice";
 
 import "./EbayItemsTable.css";
 import io from "socket.io-client";
-import config from "../../config.json"
+import config from "../../config.json";
 
-import { Helmet } from 'react-helmet-async';
-import { filter } from 'lodash';
-import { sentenceCase } from 'change-case';
+import { Helmet } from "react-helmet-async";
+import { filter } from "lodash";
+import { sentenceCase } from "change-case";
 // @mui
 import {
   Card,
@@ -37,32 +40,68 @@ import {
   IconButton,
   TableContainer,
   TablePagination,
-} from '@mui/material';
+  FormControl,
+} from "@mui/material";
 // components
-import Label from '../label';
-import Iconify from '../iconify';
-import Scrollbar from '../scrollbar';
+import Label from "../label";
+import Iconify from "../iconify";
+import Scrollbar from "../scrollbar";
 // sections
-import { UserListHead, UserListToolbar } from '../../sections/@dashboard/user';
+import { UserListHead, UserListToolbar } from "../../sections/@dashboard/user";
 // mock
-import USERLIST from '../../_mock/user';
-
+import USERLIST from "../../_mock/user";
+import OutlinedInput from "@mui/material/OutlinedInput";
+import InputLabel from "@mui/material/InputLabel";
+import ListItemText from "@mui/material/ListItemText";
+import Select from "@mui/material/Select";
+import useDebounce from "../../hooks/useDebounce";
+import ConfirmationModal from "../modals/ConfirmationModal";
 // ----------------------------------------------------------------------
 
 const TABLE_HEAD = [
-  { id: 'brand', label: 'Brand', alignRight: false },
-  { id: 'itemId', label: 'Item Id', alignRight: false },
-  { id: 'sku', label: 'SKU', alignRight: false },
-  { id: 'oem', label: 'OEM', alignRight: false },
-  { id: 'title', label: 'Title', alignRight: false },
-  { id: 'startPrice', label: 'Start Price', alignRight: false },
-  { id: 'quantity', label: 'Quantity', alignRight: false },
-//   { id: 'isVerified', label: 'Verified', alignRight: false },
-//   { id: 'status', label: 'Status', alignRight: false },
-  { id: '' },
+  { id: "brand", label: "Brand", alignRight: false },
+  { id: "itemId", label: "Item Id", alignRight: false },
+  { id: "sku", label: "SKU", alignRight: false },
+  { id: "title", label: "Title", alignRight: false },
+  { id: "startPrice", label: "Start Price", alignRight: false },
+  { id: "quantity", label: "Quantity", alignRight: false },
+  //   { id: 'isVerified', label: 'Verified', alignRight: false },
+    { id: 'synced', label: 'Synced', alignRight: false },
+  { id: "" },
 ];
 
-// ----------------------------------------------------------------------
+const priceRanges = {
+  "1 to 50": { min: 1, max: 50 },
+  "51 to 100": { min: 51, max: 100 },
+  "101 to 150": { min: 101, max: 150 },
+  "151 to 200": { min: 151, max: 200 },
+  "201 to 250": { min: 201, max: 250 },
+  "251 to 300": { min: 251, max: 300 },
+  "301 to 350": { min: 301, max: 350 },
+  "351 to 400": { min: 351, max: 400 },
+};
+
+const quantity = {
+  "1 to 5": { min: 1, max: 4 },
+  "5 to 10": { min: 5, max: 9 },
+  "10 to 15": { min: 10, max: 14 },
+  "15 to 20": { min: 15, max: 19 },
+  "20 to 25": { min: 20, max: 24 },
+  "25 to 30": { min: 25, max: 29 },
+  "30 to 35": { min: 30, max: 34 },
+  "35 to 40": { min: 35, max: 40 },
+};
+
+const soldQuantity = {
+  "1 to 5": { min: 1, max: 4 },
+  "5 to 10": { min: 5, max: 9 },
+  "10 to 15": { min: 10, max: 14 },
+  "15 to 20": { min: 15, max: 19 },
+  "20 to 25": { min: 20, max: 24 },
+  "25 to 30": { min: 25, max: 29 },
+  "30 to 35": { min: 30, max: 34 },
+  "35 to 40": { min: 35, max: 40 },
+};
 
 function descendingComparator(a, b, orderBy) {
   if (b[orderBy] < a[orderBy]) {
@@ -75,7 +114,7 @@ function descendingComparator(a, b, orderBy) {
 }
 
 function getComparator(order, orderBy) {
-  return order === 'desc'
+  return order === "desc"
     ? (a, b) => descendingComparator(a, b, orderBy)
     : (a, b) => -descendingComparator(a, b, orderBy);
 }
@@ -88,460 +127,543 @@ function applySortFilter(array, comparator, query) {
     return a[1] - b[1];
   });
   if (query) {
-    return filter(array, (_user) => _user.name.toLowerCase().indexOf(query.toLowerCase()) !== -1);
+    return filter(
+      array,
+      (_user) => _user.name.toLowerCase().indexOf(query.toLowerCase()) !== -1
+    );
   }
   return stabilizedThis.map((el) => el[0]);
 }
 
 const limit = 10;
 
+const ITEM_HEIGHT = 48;
+const ITEM_PADDING_TOP = 8;
+const MenuProps = {
+  PaperProps: {
+    style: {
+      maxHeight: ITEM_HEIGHT * 4.5 + ITEM_PADDING_TOP,
+      width: 190,
+      fontSize: 20,
+    },
+  },
+};
+
+const style = {
+  position: "absolute",
+  top: "50%",
+  left: "50%",
+  transform: "translate(-50%, -50%)",
+  width: 400,
+  bgcolor: "background.paper",
+  border: "2px solid #000",
+  boxShadow: 24,
+  p: 4,
+};
+
 const PanelTable = () => {
-    const socket = io(`${config.DOMAIN}`);
+  const socket = io(`${config.DOMAIN}`);
 
-    const dispatch = useDispatch();
+  const [openModal, setOpenModal] = React.useState(false);
+  const handleOpen = () => setOpenModal(true);
+  const handleClose = () => setOpenModal(false);
+  const [open, setOpen] = useState(null);
+  const [selectedItem, setSelectedItem] = useState([]);
+  const [page, setPage] = useState(0);
+  const [order, setOrder] = useState("asc");
+  const [selected, setSelected] = useState([]);
+  const [orderBy, setOrderBy] = useState("name");
+  const [filterName, setFilterName] = useState("");
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [filters, setFilters] = useState({
+    stores: [],
+    suppliers: [],
+    price: null,
+    quantity: null,
+    soldQuantity: null,
+  });
+  const [isRecordSelected, setIsRecordSelected] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+
+  const debouncedSearchTerm = useDebounce(filterName, 500);
+
+  const handleChange = (event) => {
     const {
-        pageItems,
-        totalpages,
-        sites,
-        selectedSite,
-        selectedBrand,
-        searchTerm,
-        searchStatus,
-        itemEditPageActive,
-        listings
-    } = useSelector(state => state.panel);
+      target: { value, name },
+    } = event;
+    setFilters((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
 
-    const [currentPage, setCurrentPage] = useState(1);
+  const dispatch = useDispatch();
+  const {
+    pageItems,
+    totalpages,
+    sites,
+    selectedSite,
+    selectedBrand,
+    searchTerm,
+    searchStatus,
+    itemEditPageActive,
+    listings,
+    stores,
+    suppliers,
+  } = useSelector((state) => state.panel);
 
-    useEffect(() => {
-        dispatch(getConfigInfo());
-    }, []);
+  const [currentPage, setCurrentPage] = useState(1);
 
-    useEffect(() => {
-        if (searchTerm.length > 0) {
-            handleSearch();
-        } else {
-            dispatch(getListingsInfo({page: currentPage, limit: limit}));
-        }
-    }, [currentPage]);
+  const notifyError = () =>
+    toast.error("Error in Deleting Listings", {
+      position: "top-right",
+      autoClose: 5000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+      progress: undefined,
+      theme: "colored",
+    });
 
-    useEffect(() => {
-      socket.on("connect", () => {
-        console.log("Connected to server");
-      });
+  const notifySuccess = () =>
+    toast.success("Listings Deleted Successfully", {
+      position: "top-right",
+      autoClose: 5000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+      progress: undefined,
+      theme: "colored",
+    });
+    
+  useEffect(() => {
+    dispatch(getConfigInfo());
+  }, []);
 
-      socket.on("disconnect", () => {
-        console.log("Disconnected from server");
-      });
+  useEffect(() => {
+    dispatch(getStores({ page: currentPage, limit: limit }));
+    dispatch(getSuppliers({ page: currentPage, limit: limit }));
+  }, [currentPage]);
 
-      socket.on("sync-listings", (data) => {
-        console.log(data);
-        dispatch(getSearchInfo({
-            term: searchTerm,
-            site: selectedSite,
-            brand: selectedBrand,
-            page: currentPage,
-            limit: limit
-        }));
-      });
+  useEffect(() => {
+    dispatch(
+      getListingsInfo({
+        page: currentPage,
+        limit: limit,
+        filters: JSON.stringify({
+          ...filters,
+          searchTerm: debouncedSearchTerm,
+        }),
+      })
+    );
+  }, [filters, debouncedSearchTerm, isSuccess]);
 
-      return () => {
-        socket.disconnect();
-      };
-    }, [socket]);
+  useEffect(() => {
+    socket.on("connect", () => {
+      console.log("Connected to server");
+    });
 
-    const [open, setOpen] = useState(null);
-    const [selectedItem, setSelectedItem] = useState(null);
+    socket.on("disconnect", () => {
+      console.log("Disconnected from server");
+    });
 
-    const [page, setPage] = useState(0);
-  
-    const [order, setOrder] = useState('asc');
-  
-    const [selected, setSelected] = useState([]);
-  
-    const [orderBy, setOrderBy] = useState('name');
-  
-    const [filterName, setFilterName] = useState('');
-  
-    const [rowsPerPage, setRowsPerPage] = useState(5);
-  
-    const handleOpenMenu = (event, id) => {
-      setOpen(event.currentTarget);
-      setSelectedItem(id)
+    socket.on("sync-listings", (data) => {
+      console.log(data);
+    });
+
+    return () => {
+      socket.disconnect();
     };
-  
-    const handleCloseMenu = () => {
-      setOpen(null);
-    };
-  
-    const handleRequestSort = (event, property) => {
-      const isAsc = orderBy === property && order === 'asc';
-      setOrder(isAsc ? 'desc' : 'asc');
-      setOrderBy(property);
-    };
-  
-    const handleSelectAllClick = (event) => {
-      if (event.target.checked) {
-        const newSelecteds = USERLIST.map((n) => n.name);
-        setSelected(newSelecteds);
-        return;
-      }
-      setSelected([]);
-    };
-  
-    const handleClick = (event, name) => {
-      const selectedIndex = selected.indexOf(name);
-      let newSelected = [];
-      if (selectedIndex === -1) {
-        newSelected = newSelected.concat(selected, name);
-      } else if (selectedIndex === 0) {
-        newSelected = newSelected.concat(selected.slice(1));
-      } else if (selectedIndex === selected.length - 1) {
-        newSelected = newSelected.concat(selected.slice(0, -1));
-      } else if (selectedIndex > 0) {
-        newSelected = newSelected.concat(selected.slice(0, selectedIndex), selected.slice(selectedIndex + 1));
-      }
-      setSelected(newSelected);
-    };
-  
-    const handleChangePage = (event, newPage) => {
-      setPage(newPage);
-    };
-  
-    const handleChangeRowsPerPage = (event) => {
-      setPage(0);
-      setRowsPerPage(parseInt(event.target.value, 10));
-    };
-  
-    const handleFilterByName = (event) => {
-      setPage(0);
-      setFilterName(event.target.value);
-    };
-  
-    const emptyRows = page > 0 ? Math.max(0, (1 + page) * rowsPerPage - USERLIST.length) : 0;
-  
-    const filteredUsers = applySortFilter(USERLIST, getComparator(order, orderBy), filterName);
-  
-    const isNotFound = !filteredUsers.length && !!filterName;
+  }, [socket]);
 
-    const navigate = useNavigate();
+  const handleOpenMenu = (event, id) => {
+    setOpen(event.currentTarget);
+    setSelectedItem([id]);
+  };
 
-    const handlePage = (event) => {
-        const direction = event.target.value;
+  const handleCloseMenu = () => {
+    setOpen(null);
+  };
 
-        if (direction === 'next' && totalpages > 0) {
-            setCurrentPage(prevPage => prevPage + 1);
-        } else if (direction === 'previous' && currentPage > 0) {
-            setCurrentPage(prevPage => prevPage - 1);
-        }
-    };
+  const handleRequestSort = (event, property) => {
+    const isAsc = orderBy === property && order === "asc";
+    setOrder(isAsc ? "desc" : "asc");
+    setOrderBy(property);
+  };
 
-    const handleFilterChange = (event, filter) => {
-        dispatch(updateFilter({value: event.target.value, filter}));
+  const handleSelectAllClick = (event) => {
+    if (event.target.checked) {
+      const newSelecteds = listings?.map((n) => n._id);
+      setSelected(newSelecteds);
+      return;
+    }
+    setSelected([]);
+  };
+
+  const handleClick = (event, name) => {
+    const selectedIndex = selected.indexOf(name);
+    let newSelected = [];
+    if (selectedIndex === -1) {
+      newSelected = newSelected.concat(selected, name);
+    } else if (selectedIndex === 0) {
+      newSelected = newSelected.concat(selected.slice(1));
+    } else if (selectedIndex === selected.length - 1) {
+      newSelected = newSelected.concat(selected.slice(0, -1));
+    } else if (selectedIndex > 0) {
+      newSelected = newSelected.concat(
+        selected.slice(0, selectedIndex),
+        selected.slice(selectedIndex + 1)
+      );
     }
 
-    const handleSearch = () => {
-        dispatch(getSearchInfo({
-            term: searchTerm,
-            site: selectedSite,
-            brand: selectedBrand,
-            page: currentPage,
-            limit: limit
-        }));
+    if (newSelected.length > 0) {
+      setIsRecordSelected(true);
+    } else {
+      setIsRecordSelected(false);
     }
 
-    const handleSync = () => {
-       socket.emit("sync-listings", { site: selectedSite });
-    }
-    const handleImport = () => {};
-    const handleExport = () => {};
+    setSelected(newSelected);
+  };
 
-    const handleItemEditBtn = (item) => {
-        dispatch(updateItemEditPageActive(item));
-        navigate('/item-edit');
-    }
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
 
-    return (
-      <>
-      <div className="panel-table">
-          <div className="panel-data-control">
-            {/* <div className="panel-table-search">
-              <input
-                type="text"
-                className="panel-data-control-search"
-                placeholder="Search..."
-                value={searchTerm}
-                onChange={(event) => handleFilterChange(event, "term")}
-              />
-            </div> */}
-            <div className="panel-table-control">
-              <div className="panel-table-filter">
-                <select
-                  className="panel-site-selector"
-                  value={selectedSite}
-                  onChange={(event) => handleFilterChange(event, "site")}
-                >
-                  <option value="" hidden defaultChecked>
-                    Choose Site
-                  </option>
-                  <option value="">None</option>
-                  {sites &&
-                    sites.map((obj) => {
-                      return (
-                        <option key={obj.site} value={obj.site}>
-                          {obj.site}
-                        </option>
-                      );
-                    })}
-                </select>
-                {/* <select
-                  className="panel-brand-selector"
-                  value={selectedBrand}
-                  onChange={(event) => handleFilterChange(event, "brand")}
-                >
-                  <option value="" hidden defaultChecked>
-                    Choose Brand
-                  </option>
-                  <option value="">None</option>
-                  {sites &&
-                    sites.map((obj) => {
-                      if (selectedSite && obj.site !== selectedSite) {
-                        return null;
-                      }
-                      return obj.brands.map((brand) => (
-                        <option key={brand} value={brand}>
-                          {brand}
-                        </option>
-                      ));
-                    })}
-                </select>
-                <div className="panel-price-selector">
-                  <input
-                    type="number"
-                    className="panel-data-control-price"
-                    placeholder="Min Price"
-                  />
-                  <input
-                    type="number"
-                    className="panel-data-control-price"
-                    placeholder="Max Price"
-                  />
-                </div> */}
-              </div>
-              {/* <div className="panel-table-search-btn">
-                <div className="panel-search">
-                  <Button variant="contained" className="panel-search-btn" onClick={handleSearch}>
-                    Search
-                  </Button>
-                </div>
-              </div> */}
-              <div className="panel-table-search-btn">
-                <div className="panel-search">
-                  <Button variant="contained" onClick={handleSync}>
-                    Sync Listings
-                  </Button>
-                </div>
-              </div>
-              <div className="panel-table-search-btn">
-                <div className="panel-search">
-                  <Button variant="contained" onClick={handleImport}>
-                    Listings Import
-                  </Button>
-                </div>
-              </div>
-              <div className="panel-table-search-btn">
-                <div className="panel-search">
-                  <Button variant="contained" onClick={handleExport}>
-                    Listings Export
-                  </Button>
-                </div>
-              </div>
-            </div>
-            <span>{searchStatus}</span>
-          </div>
-          <div className="panel-data-table-control">
-            <div className="panel-page-control-wrapper">
-              <span>
-                {currentPage} of {totalpages}
-              </span>
-              <button
-                className="panel-page-control-btn"
-                value="previous"
-                onClick={handlePage}
-              >
-                <i className="fi fi-br-angle-left"></i>
-              </button>
-              <button
-                className="panel-page-control-btn"
-                value="next"
-                onClick={handlePage}
-              >
-                <i className="fi fi-br-angle-right"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-        <Container>
-          <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            mb={5}
+  const handleChangeRowsPerPage = (event) => {
+    setPage(0);
+    setRowsPerPage(parseInt(event.target.value, 10));
+  };
+
+  const handleFilterByName = (event) => {
+    setPage(0);
+    setFilterName(event.target.value);
+  };
+
+  const emptyRows =
+    page > 0 ? Math.max(0, (1 + page) * rowsPerPage - listings?.length) : 0;
+
+  const filteredUsers = applySortFilter(
+    USERLIST,
+    getComparator(order, orderBy),
+    filterName
+  );
+
+  const isNotFound = !filteredUsers.length && !!filterName;
+
+  const navigate = useNavigate();
+
+  const handlePage = (event) => {
+    const direction = event.target.value;
+
+    if (direction === "next" && totalpages > 0) {
+      setCurrentPage((prevPage) => prevPage + 1);
+    } else if (direction === "previous" && currentPage > 0) {
+      setCurrentPage((prevPage) => prevPage - 1);
+    }
+  };
+
+  const handleFilterChange = (event, filter) => {
+    dispatch(updateFilter({ value: event.target.value, filter }));
+  };
+
+  const handleSearch = () => {};
+
+  const handleSync = () => {
+    socket.emit("sync-listings", { site: selectedSite });
+  };
+  const handleImport = () => {};
+  const handleExport = () => {};
+
+  const handleItemEditBtn = (item) => {
+    dispatch(updateItemEditPageActive(item));
+    navigate("/item-edit");
+  };
+
+  const handleDelete = async () => {
+    const result = await dispatch(deleteListing({ id: selectedItem }));
+    handleClose();
+    if (result.payload.success) {
+      setIsSuccess(true);
+      notifySuccess();
+    } else if (!result.payload.success) {
+      notifyError();
+      setIsSuccess(false);
+    }
+    setIsRecordSelected(false);
+  };
+
+  const handleBulkDelete = async () => {
+    const result = await dispatch(deleteListing({ id: selected }));
+    handleClose();
+    if (result.payload.success) {
+      setIsSuccess(true);
+      notifySuccess();
+    } else if (!result.payload.success) {
+      notifyError();
+      setIsSuccess(false);
+    }
+    setIsRecordSelected(false);
+  };
+
+  return (
+    <>
+      <Container>
+        <ConfirmationModal
+          title={"Are you sure you want to delete this information?"}
+          open={openModal}
+          handleClose={handleClose}
+          handleSubmit={isRecordSelected ? handleBulkDelete : handleDelete}
+        />
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          mb={5}
+        >
+          <Typography variant="h4" gutterBottom>
+            Listings
+          </Typography>
+        </Stack>
+
+        <FormControl sx={{ m: 1, width: 190, mb: 3 }}>
+          <InputLabel id="demo-multiple-checkbox-label">Store</InputLabel>
+          <Select
+            labelId="demo-multiple-checkbox-label"
+            id="demo-multiple-checkbox"
+            multiple
+            value={filters.stores}
+            name="stores"
+            onChange={handleChange}
+            input={<OutlinedInput label="Tag" />}
+            renderValue={(selected) => selected.join(", ")}
+            MenuProps={MenuProps}
           >
-            <Typography variant="h4" gutterBottom>
-              Ebay Listings
-            </Typography>
-          </Stack>
-
-          <Card>
-            <TableContainer sx={{ minWidth: 800 }}>
-              <Table>
-                <UserListHead
-                  order={order}
-                  orderBy={orderBy}
-                  headLabel={TABLE_HEAD}
-                  rowCount={USERLIST.length}
-                  numSelected={selected.length}
-                  onRequestSort={handleRequestSort}
-                  onSelectAllClick={handleSelectAllClick}
+            {stores.map((store) => (
+              <MenuItem key={store._id} value={store.email}>
+                <Checkbox checked={filters.stores.indexOf(store.email) > -1} />
+                <ListItemText primary={store.name} />
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl sx={{ m: 1, width: 190, mb: 3 }}>
+          <InputLabel id="demo-multiple-checkbox-label">Supplier</InputLabel>
+          <Select
+            labelId="demo-multiple-checkbox-label"
+            id="demo-multiple-checkbox"
+            multiple
+            value={filters.suppliers}
+            name="suppliers"
+            onChange={handleChange}
+            input={<OutlinedInput label="Tag" />}
+            renderValue={(selected) => selected.join(", ")}
+            MenuProps={MenuProps}
+          >
+            {suppliers.map((supplier) => (
+              <MenuItem key={supplier._id} value={supplier.name}>
+                <Checkbox
+                  checked={filters.suppliers.indexOf(supplier.name) > -1}
                 />
-                <TableBody>
-                      {
-                         listings && listings.map((item) => (
-                          <TableRow
-                            hover
-                            key={item._id}
-                            tabIndex={-1}
-                            role="checkbox"
-                            // selected={selectedUser}
-                          >
-                            <TableCell padding="checkbox">
-                              <Checkbox
-                                // checked={selectedUser}
-                                // onChange={(event) => handleClick(event, name)}
-                              />
-                            </TableCell>
+                <ListItemText primary={supplier.name} />
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl sx={{ m: 1, width: 150 }}>
+          <InputLabel id="demo-simple-select-required-label">Price</InputLabel>
+          <Select
+            labelId="demo-simple-select-required-label"
+            id="demo-simple-select-required"
+            value={filters.price}
+            name="price"
+            label="Price"
+            onChange={handleChange}
+          >
+            <MenuItem value="">None</MenuItem>
+            {Object.keys(priceRanges).map((val) => (
+              <MenuItem key={val} value={priceRanges[val]}>
+                {val}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl sx={{ m: 1, width: 150 }}>
+          <InputLabel id="demo-simple-select-required-label">
+            Quantity
+          </InputLabel>
+          <Select
+            labelId="demo-simple-select-required-label"
+            id="demo-simple-select-required"
+            value={filters.quantity}
+            name="quantity"
+            label="Quantity"
+            onChange={handleChange}
+          >
+            <MenuItem value="">None</MenuItem>
+            {Object.keys(quantity).map((val) => (
+              <MenuItem key={val} value={quantity[val]}>
+                {val}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl sx={{ m: 1, width: 150 }}>
+          <InputLabel id="demo-simple-select-required-label">
+            Sold Quantity
+          </InputLabel>
+          <Select
+            labelId="demo-simple-select-required-label"
+            id="demo-simple-select-required"
+            value={filters.soldQuantity}
+            name="soldQuantity"
+            label="Sold Quantity"
+            onChange={handleChange}
+          >
+            <MenuItem value="">None</MenuItem>
+            {Object.keys(soldQuantity).map((val) => (
+              <MenuItem key={val} value={soldQuantity[val]}>
+                {val}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <br/>
+        <Button
+          onClick={handleOpen}
+          variant="outlined"
+          sx={{ mt: 3, mb: 3 }}
+          disabled={selected.length < 1}
+        >
+          Delete Selected
+        </Button>
+        <Card>
+          <UserListToolbar
+            numSelected={selected.length}
+            filterName={filterName}
+            onFilterName={handleFilterByName}
+            selectedIds={selected}
+          />
+          <ToastContainer />
 
+          <TableContainer sx={{ minWidth: 800 }}>
+            <Table>
+              <UserListHead
+                order={order}
+                orderBy={orderBy}
+                headLabel={TABLE_HEAD}
+                rowCount={listings.length}
+                numSelected={selected.length}
+                onRequestSort={handleRequestSort}
+                onSelectAllClick={handleSelectAllClick}
+              />
+              <TableBody>
+                {listings &&
+                  listings
+                    ?.slice(
+                      page * rowsPerPage,
+                      page * rowsPerPage + rowsPerPage
+                    )
+                    .map((item) => {
+                      // const { id, name, role, status, company, avatarUrl, isVerified } = item;
+                      const selectedUser = selected.indexOf(item._id) !== -1;
+                      return (
+                        <TableRow
+                          hover
+                          key={item._id}
+                          tabIndex={-1}
+                          role="checkbox"
+                          selected={selectedUser}
+                        >
+                          <TableCell padding="checkbox">
+                            <Checkbox
+                              checked={selectedUser}
+                              onChange={(event) => handleClick(event, item._id)}
+                            />
+                          </TableCell>
 
-                            <TableCell align="left">{item.brand}</TableCell>
-                            <TableCell align="left">{item.itemId}</TableCell>
+                          <TableCell align="left">{item.brand}</TableCell>
+                          <TableCell className="ebay-url" align="left" onClick={() => window.open(`https://www.ebay.com/itm/${item.itemId}`, '_blank')}>{item.itemId}</TableCell>
 
-                            <TableCell align="left">
-                              {item.sku}
-                            </TableCell>
-                            <TableCell align="left">
-                              {item.oem}
-                            </TableCell>
-                            <TableCell align="left">{item.title}</TableCell>
-                            <TableCell align="left">
-                              {item.startPrice}
-                            </TableCell>
-                            <TableCell align="left">{item.quantity}</TableCell>
-{/* 
-                            <TableCell align="left">
-                              {isVerified ? "Yes" : "No"}
-                            </TableCell>
+                          <TableCell align="left">{item.sku}</TableCell>
+                          <TableCell align="left">{item.title}</TableCell>
+                          <TableCell align="left">{item.startPrice}</TableCell>
+                          <TableCell align="left">{item.quantity}</TableCell>
 
                             <TableCell align="left">
                               <Label
                                 color={
-                                  (status === "banned" && "error") || "success"
+                                  (item.synced === false && "error") || "success"
                                 }
                               >
-                                {sentenceCase(status)}
+                                {item.synced ? "Synced" : "Un-Synced"}
                               </Label>
-                            </TableCell> */}
-
-                            <TableCell align="right">
-                              <IconButton
-                                size="large"
-                                color="inherit"
-                                onClick={e => handleOpenMenu(e, item._id)}
-                              >
-                                <Iconify icon={"eva:more-vertical-fill"} />
-                              </IconButton>
                             </TableCell>
-                          </TableRow>
-                        ))
-                      }
-                    
-                  {emptyRows > 0 && (
-                    <TableRow style={{ height: 53 * emptyRows }}>
-                      <TableCell colSpan={6} />
-                    </TableRow>
-                  )}
-                </TableBody>
 
-                {isNotFound && (
-                  <TableBody>
-                    <TableRow>
-                      <TableCell align="center" colSpan={6} sx={{ py: 3 }}>
-                        <Paper
-                          sx={{
-                            textAlign: "center",
-                          }}
-                        >
-                          <Typography variant="h6" paragraph>
-                            Not found
-                          </Typography>
+                          <TableCell align="right">
+                            <IconButton
+                              size="large"
+                              color="inherit"
+                              onClick={(e) => handleOpenMenu(e, item._id)}
+                            >
+                              <Iconify icon={"eva:more-vertical-fill"} />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
 
-                          <Typography variant="body2">
-                            No results found for &nbsp;
-                            <strong>&quot;{filterName}&quot;</strong>.
-                            <br /> Try checking for typos or using complete
-                            words.
-                          </Typography>
-                        </Paper>
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
+                {emptyRows > 0 && (
+                  <TableRow style={{ height: 53 * emptyRows }}>
+                    <TableCell colSpan={6} />
+                  </TableRow>
                 )}
-              </Table>
-            </TableContainer>
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <TablePagination
+            rowsPerPageOptions={[25, 50, 100]}
+            component="div"
+            count={listings?.length}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={handlePage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+          />
+        </Card>
+      </Container>
 
-            <TablePagination
-              rowsPerPageOptions={[5, 10, 25]}
-              component="div"
-              count={pageItems.length}
-              rowsPerPage={rowsPerPage}
-              page={page}
-              onPageChange={handlePage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-            />
-          </Card>
-        </Container>
-
-        <Popover
-          open={Boolean(open)}
-          anchorEl={open}
-          onClose={handleCloseMenu}
-          anchorOrigin={{ vertical: "top", horizontal: "left" }}
-          transformOrigin={{ vertical: "top", horizontal: "right" }}
-          PaperProps={{
-            sx: {
-              p: 1,
-              width: 140,
-              "& .MuiMenuItem-root": {
-                px: 1,
-                typography: "body2",
-                borderRadius: 0.75,
-              },
+      <Popover
+        open={Boolean(open)}
+        anchorEl={open}
+        onClose={handleCloseMenu}
+        anchorOrigin={{ vertical: "top", horizontal: "left" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        PaperProps={{
+          sx: {
+            p: 1,
+            width: 140,
+            "& .MuiMenuItem-root": {
+              px: 1,
+              typography: "body2",
+              borderRadius: 0.75,
             },
-          }}
-        >
-          <MenuItem onClick={() => navigate(`/listing-edit/${selectedItem}`)}>
-            <Iconify icon={"eva:edit-fill"} sx={{ mr: 2 }} />
-            Edit
-          </MenuItem>
+          },
+        }}
+      >
+        <MenuItem onClick={() => navigate(`/listing-edit/${selectedItem}`)}>
+          <Iconify icon={"eva:edit-fill"} sx={{ mr: 2 }} />
+          Edit
+        </MenuItem>
 
-          <MenuItem sx={{ color: "error.main" }}>
-            <Iconify icon={"eva:trash-2-outline"} sx={{ mr: 2 }} />
-            Delete
-          </MenuItem>
-        </Popover>
-        
-      </>
-    );
+        <MenuItem onClick={handleOpen} sx={{ color: "error.main" }}>
+          <Iconify icon={"eva:trash-2-outline"} sx={{ mr: 2 }} />
+          Delete
+        </MenuItem>
+      </Popover>
+    </>
+  );
 };
 
 export default PanelTable;

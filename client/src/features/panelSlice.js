@@ -5,14 +5,15 @@ import config from '../config.json';
 
 export const getitemInfo = createAsyncThunk(
     'panel/getitemInfo',
-    async ({ site, page, limit }, { rejectWithValue }) => {
+    async ({ site, page, limit, filters }, { rejectWithValue }) => {
         try {
             const response = await axios.get(
-                `${config.DOMAIN}${config.API_PREFIX}/sites/items?page=${page}&limit=${limit}`,
+                `${config.DOMAIN}${config.API_PREFIX}/sites/items`,
                 {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`,
                     },
+                    params: { page, limit, filters },
                 }
             );
 
@@ -25,15 +26,16 @@ export const getitemInfo = createAsyncThunk(
 
 export const getListingsInfo = createAsyncThunk(
     'panel/getListingsInfo',
-    async ({ site, page, limit }, { rejectWithValue }) => {
+    async ({ site, page, limit, filters }, { rejectWithValue }) => {
         try {
             const response = await axios.get(
-                `${config.DOMAIN}${config.API_PREFIX}/sites/listings?page=${page}&limit=${limit}`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                    },
-                }
+              `${config.DOMAIN}${config.API_PREFIX}/sites/listings`,
+              {
+                headers: {
+                  Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
+                params: { page, limit, filters },
+              }
             );
 
             return response.data;
@@ -154,6 +156,69 @@ export const getSearchListingsInfo = createAsyncThunk(
                         'Authorization': `Bearer ${localStorage.getItem('token')}`,
                     },
                 }
+            );
+
+            return response.data;
+        } catch (err) {
+            return rejectWithValue(err.response.data);
+        }
+    }
+);
+
+export const deleteItem = createAsyncThunk(
+    'panelItem/deleteItem',
+    async ({id}, {rejectWithValue}) => {
+        try {
+            const response = await axios.delete(
+              `${config.DOMAIN}${config.API_PREFIX}/sites/items`,
+              { params: { ids: id } },
+              {
+                headers: {
+                  Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
+              }
+            );
+
+            return response.data;
+        } catch (err) {
+            return rejectWithValue(err.response.data);
+        }
+    }
+);
+
+export const deleteListing = createAsyncThunk(
+    'panelItem/deleteListing',
+    async ({id}, {rejectWithValue}) => {
+        try {
+            const response = await axios.delete(
+              `${config.DOMAIN}${config.API_PREFIX}/sites/listings`,
+              { params: { ids: id } },
+              {
+                headers: {
+                  Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
+              }
+            );
+
+            return response.data;
+        } catch (err) {
+            return rejectWithValue(err.response.data);
+        }
+    }
+);
+
+export const deleteStore = createAsyncThunk(
+    'panelItem/deleteStore',
+    async ({id}, {rejectWithValue}) => {
+        try {
+            const response = await axios.delete(
+              `${config.DOMAIN}${config.API_PREFIX}/sites/store`,
+              { params: { ids: id } },
+              {
+                headers: {
+                  Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
+              }
             );
 
             return response.data;
@@ -299,6 +364,36 @@ const panelSlice = createSlice({
         },
         [getStores.rejected]: (state, { payload }) => {
             state.getStores = 'Search Error';
+            state.error = payload;
+        },
+        [deleteItem.pending]: (state, action) => {
+            state.deleteItem = 'Loading...';
+        },
+        [deleteItem.fulfilled]: (state, { payload }) => {
+            state.deleteItem = `${payload} Results for stores`; 
+        },
+        [deleteItem.rejected]: (state, { payload }) => {
+            state.deleteItem = 'Search Error';
+            state.error = payload;
+        },
+        [deleteListing.pending]: (state, action) => {
+            state.deleteListing = 'Loading...';
+        },
+        [deleteListing.fulfilled]: (state, { payload }) => {
+            state.deleteListing = `${payload} Results for stores`; 
+        },
+        [deleteListing.rejected]: (state, { payload }) => {
+            state.deleteListing = 'Search Error';
+            state.error = payload;
+        },
+        [deleteStore.pending]: (state, action) => {
+            state.deleteStore = 'Loading...';
+        },
+        [deleteStore.fulfilled]: (state, { payload }) => {
+            state.deleteStore = `${payload} Results for stores`; 
+        },
+        [deleteStore.rejected]: (state, { payload }) => {
+            state.deleteStore = 'Search Error';
             state.error = payload;
         }
     },

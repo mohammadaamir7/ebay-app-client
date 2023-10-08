@@ -212,7 +212,12 @@ tr {
   font-size: 18px;
   font-weight: 600;
 }
-
+.ebay-url{
+  cursor: pointer;
+}
+.ebay-url:hover{
+  text-decoration: underline;
+}
 /* .table-item-img {
   height: 40px;
 } */

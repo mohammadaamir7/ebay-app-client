@@ -2,6 +2,7 @@ import {createSlice, createAsyncThunk} from '@reduxjs/toolkit';
 import axios from 'axios';
 
 import config from '../config.json';
+import { toast } from 'react-toastify';
 
 export const getItemDetail = createAsyncThunk(
     'panelItem/getItemDetail',
@@ -74,8 +75,9 @@ export const updateListing = createAsyncThunk(
                         'Authorization': `Bearer ${localStorage.getItem('token')}`,
                     },
                 });
+
             return response.data;
-        } catch (err) {
+        } catch (err) {         
             return rejectWithValue(err.response.data);
         }
     }

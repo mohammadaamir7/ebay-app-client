@@ -27,7 +27,7 @@ export default function Router() {
       path: '/',
       element: <DashboardLayout />,
       children: [
-        { element: <Navigate to="/scrape" />, index: true },
+        { element: <Navigate to="/listings" />, index: true },
         { path: 'profile', element: <Profile /> },
         { path: 'scrape', element: <Scrape /> },
         { path: 'panel', element: <Panel /> },

@@ -90,3 +90,11 @@
     transition: box-shadow 0.5s;
 }
 
+.switch-head {
+    font-size: 15px;
+    margin-top: 7px !important;
+}
+
+.descriptive-head {
+    margin-left: 15px;
+}

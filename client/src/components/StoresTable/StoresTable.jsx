@@ -1,25 +1,25 @@
-import React, {useState, useEffect, useRef} from "react";
-import {Link, useNavigate} from 'react-router-dom';
+import React, { useState, useEffect, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
-import {useSelector, useDispatch} from 'react-redux';
+import { useSelector, useDispatch } from "react-redux";
 import {
-    getitemInfo,
-    getConfigInfo,
-    getSearchInfo,
-    updateFilter,
-    updateItemEditPageActive,
-    getListingsInfo,
-    getSuppliers,
-    getStores
-} from '../../features/panelSlice';
+  getitemInfo,
+  getConfigInfo,
+  updateFilter,
+  updateItemEditPageActive,
+  getListingsInfo,
+  getSuppliers,
+  getStores,
+  deleteStore,
+} from "../../features/panelSlice";
 
 import "./StoresTable.css";
 import io from "socket.io-client";
-import config from "../../config.json"
+import config from "../../config.json";
 
-import { Helmet } from 'react-helmet-async';
-import { filter } from 'lodash';
-import { sentenceCase } from 'change-case';
+import { Helmet } from "react-helmet-async";
+import { filter } from "lodash";
+import { sentenceCase } from "change-case";
 // @mui
 import {
   Card,
@@ -39,23 +39,26 @@ import {
   IconButton,
   TableContainer,
   TablePagination,
-} from '@mui/material';
+} from "@mui/material";
 // components
-import Label from '../label';
-import Iconify from '../iconify';
-import Scrollbar from '../scrollbar';
+import Label from "../label";
+import Iconify from "../iconify";
+import Scrollbar from "../scrollbar";
 // sections
-import { UserListHead, UserListToolbar } from '../../sections/@dashboard/user';
+import { UserListHead, UserListToolbar } from "../../sections/@dashboard/user";
 // mock
-import USERLIST from '../../_mock/user';
+import USERLIST from "../../_mock/user";
+import ConfirmationModal from "../modals/ConfirmationModal";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 // ----------------------------------------------------------------------
 
 const TABLE_HEAD = [
-  { id: 'name', label: 'Supplier', alignRight: false },
-  { id: 'email', label: 'Email', alignRight: false },
-  { id: 'supliers', label: 'Suppliers', alignRight: false },
-  { id: '' },
+  { id: "name", label: "Supplier", alignRight: false },
+  { id: "email", label: "Email", alignRight: false },
+  { id: "supliers", label: "Suppliers", alignRight: false },
+  { id: "" },
 ];
 
 // ----------------------------------------------------------------------
@@ -71,7 +74,7 @@ function descendingComparator(a, b, orderBy) {
 }
 
 function getComparator(order, orderBy) {
-  return order === 'desc'
+  return order === "desc"
     ? (a, b) => descendingComparator(a, b, orderBy)
     : (a, b) => -descendingComparator(a, b, orderBy);
 }
@@ -84,7 +87,10 @@ function applySortFilter(array, comparator, query) {
     return a[1] - b[1];
   });
   if (query) {
-    return filter(array, (_user) => _user.name.toLowerCase().indexOf(query.toLowerCase()) !== -1);
+    return filter(
+      array,
+      (_user) => _user.name.toLowerCase().indexOf(query.toLowerCase()) !== -1
+    );
   }
   return stabilizedThis.map((el) => el[0]);
 }
@@ -92,317 +98,357 @@ function applySortFilter(array, comparator, query) {
 const limit = 10;
 
 const PanelTable = () => {
-    const socket = io(`${config.DOMAIN}`);
+  const socket = io(`${config.DOMAIN}`);
 
-    const dispatch = useDispatch();
-    const {
-        pageItems,
-        totalpages,
-        sites,
-        selectedSite,
-        selectedBrand,
-        searchTerm,
-        searchStatus,
-        itemEditPageActive,
-        stores
-    } = useSelector(state => state.panel);
+  const dispatch = useDispatch();
+  const {
+    pageItems,
+    totalpages,
+    sites,
+    selectedSite,
+    selectedBrand,
+    searchTerm,
+    searchStatus,
+    itemEditPageActive,
+    stores,
+    error,
+    status,
+  } = useSelector((state) => state.panel);
 
-    const [currentPage, setCurrentPage] = useState(1);
+  const [isRecordSelected, setIsRecordSelected] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [openModal, setOpenModal] = React.useState(false);
+  const handleOpen = () => setOpenModal(true);
+  const handleClose = () => setOpenModal(false);
 
-    useEffect(() => {
-        dispatch(getConfigInfo());
-    }, []);
+  useEffect(() => {
+    dispatch(getConfigInfo());
+  }, []);
 
-    useEffect(() => {
-        if (searchTerm.length > 0) {
-            handleSearch();
-        } else {
-            dispatch(getStores({page: currentPage, limit: limit}));
-        }
-    }, [currentPage]);
+  useEffect(() => {
+    if (searchTerm.length > 0) {
+      handleSearch();
+    } else {
+      dispatch(getStores({ page: currentPage, limit: limit }));
+    }
+  }, [currentPage, status, isSuccess]);
 
-    const [open, setOpen] = useState(null);
-    const [selectedItem, setSelectedItem] = useState(null);
+  const [open, setOpen] = useState(null);
+  const [selectedItem, setSelectedItem] = useState(null);
 
-    const [page, setPage] = useState(0);
-  
-    const [order, setOrder] = useState('asc');
-  
-    const [selected, setSelected] = useState([]);
-  
-    const [orderBy, setOrderBy] = useState('name');
-  
-    const [filterName, setFilterName] = useState('');
-  
-    const [rowsPerPage, setRowsPerPage] = useState(5);
-  
-    const handleOpenMenu = (event, id) => {
-      setOpen(event.currentTarget);
-      setSelectedItem(id)
-    };
-  
-    const handleCloseMenu = () => {
-      setOpen(null);
-    };
-  
-    const handleRequestSort = (event, property) => {
-      const isAsc = orderBy === property && order === 'asc';
-      setOrder(isAsc ? 'desc' : 'asc');
-      setOrderBy(property);
-    };
-  
-    const handleSelectAllClick = (event) => {
-      if (event.target.checked) {
-        const newSelecteds = USERLIST.map((n) => n.name);
-        setSelected(newSelecteds);
-        return;
-      }
-      setSelected([]);
-    };
-  
-    const handleClick = (event, name) => {
-      const selectedIndex = selected.indexOf(name);
-      let newSelected = [];
-      if (selectedIndex === -1) {
-        newSelected = newSelected.concat(selected, name);
-      } else if (selectedIndex === 0) {
-        newSelected = newSelected.concat(selected.slice(1));
-      } else if (selectedIndex === selected.length - 1) {
-        newSelected = newSelected.concat(selected.slice(0, -1));
-      } else if (selectedIndex > 0) {
-        newSelected = newSelected.concat(selected.slice(0, selectedIndex), selected.slice(selectedIndex + 1));
-      }
-      setSelected(newSelected);
-    };
-  
-    const handleChangePage = (event, newPage) => {
-      setPage(newPage);
-    };
-  
-    const handleChangeRowsPerPage = (event) => {
-      setPage(0);
-      setRowsPerPage(parseInt(event.target.value, 10));
-    };
-  
-    const handleFilterByName = (event) => {
-      setPage(0);
-      setFilterName(event.target.value);
-    };
-  
-    const emptyRows = page > 0 ? Math.max(0, (1 + page) * rowsPerPage - USERLIST.length) : 0;
-  
-    const filteredUsers = applySortFilter(USERLIST, getComparator(order, orderBy), filterName);
-  
-    const isNotFound = !filteredUsers.length && !!filterName;
+  const [page, setPage] = useState(0);
 
-    const navigate = useNavigate();
+  const [order, setOrder] = useState("asc");
 
-    const handlePage = (event) => {
-        const direction = event.target.value;
+  const [selected, setSelected] = useState([]);
 
-        if (direction === 'next' && totalpages > 0) {
-            setCurrentPage(prevPage => prevPage + 1);
-        } else if (direction === 'previous' && currentPage > 0) {
-            setCurrentPage(prevPage => prevPage - 1);
-        }
-    };
+  const [orderBy, setOrderBy] = useState("name");
 
-    const handleFilterChange = (event, filter) => {
-        dispatch(updateFilter({value: event.target.value, filter}));
+  const [filterName, setFilterName] = useState("");
+
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+
+  const notifyError = () =>
+    toast.error("Error in Deleting Store", {
+      position: "top-right",
+      autoClose: 5000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+      progress: undefined,
+      theme: "colored",
+    });
+
+  const notifySuccess = () =>
+    toast.success("Store Deleted Successfully", {
+      position: "top-right",
+      autoClose: 5000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+      progress: undefined,
+      theme: "colored",
+    });
+
+  // if (status === "failed") notifyError();
+
+  const handleOpenMenu = (event, id) => {
+    setOpen(event.currentTarget);
+    setSelectedItem(id);
+  };
+
+  const handleCloseMenu = () => {
+    setOpen(null);
+  };
+
+  const handleRequestSort = (event, property) => {
+    const isAsc = orderBy === property && order === "asc";
+    setOrder(isAsc ? "desc" : "asc");
+    setOrderBy(property);
+  };
+
+  const handleSelectAllClick = (event) => {
+    if (event.target.checked) {
+      const newSelecteds = stores.map((n) => n._id);
+      setSelected(newSelecteds);
+      return;
+    }
+    setSelected([]);
+  };
+
+  const handleClick = (event, name) => {
+    const selectedIndex = selected.indexOf(name);
+    let newSelected = [];
+    if (selectedIndex === -1) {
+      newSelected = newSelected.concat(selected, name);
+    } else if (selectedIndex === 0) {
+      newSelected = newSelected.concat(selected.slice(1));
+    } else if (selectedIndex === selected.length - 1) {
+      newSelected = newSelected.concat(selected.slice(0, -1));
+    } else if (selectedIndex > 0) {
+      newSelected = newSelected.concat(
+        selected.slice(0, selectedIndex),
+        selected.slice(selectedIndex + 1)
+      );
     }
 
-    const handleSearch = () => {
-        dispatch(getSearchInfo({
-            term: searchTerm,
-            site: selectedSite,
-            brand: selectedBrand,
-            page: currentPage,
-            limit: limit
-        }));
+    if (newSelected.length > 0) {
+      setIsRecordSelected(true);
+    } else {
+      setIsRecordSelected(false);
     }
 
-    const handleSync = () => {
-       socket.emit("sync-listings", { site: selectedSite });
+    setSelected(newSelected);
+  };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setPage(0);
+    setRowsPerPage(parseInt(event.target.value, 10));
+  };
+
+  const handleFilterByName = (event) => {
+    setPage(0);
+    setFilterName(event.target.value);
+  };
+
+  const emptyRows =
+    page > 0 ? Math.max(0, (1 + page) * rowsPerPage - stores.length) : 0;
+
+  const filteredUsers = applySortFilter(
+    stores,
+    getComparator(order, orderBy),
+    filterName
+  );
+
+  const isNotFound = !filteredUsers.length && !!filterName;
+
+  const navigate = useNavigate();
+
+  const handlePage = (event) => {
+    const direction = event.target.value;
+
+    if (direction === "next" && totalpages > 0) {
+      setCurrentPage((prevPage) => prevPage + 1);
+    } else if (direction === "previous" && currentPage > 0) {
+      setCurrentPage((prevPage) => prevPage - 1);
     }
-    const handleImport = () => {};
-    const handleExport = () => {};
+  };
 
-    const handleItemEditBtn = (item) => {
-        dispatch(updateItemEditPageActive(item));
-        navigate('/item-edit');
+  const handleFilterChange = (event, filter) => {
+    dispatch(updateFilter({ value: event.target.value, filter }));
+  };
+
+  const handleSearch = () => {};
+
+  const handleSync = () => {
+    socket.emit("sync-listings", { site: selectedSite });
+  };
+  const handleImport = () => {};
+  const handleExport = () => {};
+
+  const handleItemEditBtn = (item) => {
+    dispatch(updateItemEditPageActive(item));
+    navigate("/item-edit");
+  };
+
+  const handleDelete = async () => {
+    const result = await dispatch(deleteStore({ id: [selectedItem] }));
+    handleClose();
+    if (result.payload.success) {
+      setIsSuccess(true);
+      notifySuccess();
+    } else if (!result.payload.success) {
+      notifyError();
+      setIsSuccess(false);
     }
+    setIsRecordSelected(false)
+  };
 
-    return (
-      <>
-      <div className="panel-table">
-          <div className="panel-data-control">
-            <div className="panel-table-control">
-              <div className="panel-table-search-btn">
-                <div className="panel-search">
-                  <Button onClick={() => navigate("/add-store")} variant="contained">
-                    Add Store
-                  </Button>
-                </div>
-              </div>
-            </div>
-            <span>{searchStatus}</span>
-          </div>
-          <div className="panel-data-table-control">
-            <div className="panel-page-control-wrapper">
-              <span>
-                {currentPage} of {totalpages}
-              </span>
-              <button
-                className="panel-page-control-btn"
-                value="previous"
-                onClick={handlePage}
-              >
-                <i className="fi fi-br-angle-left"></i>
-              </button>
-              <button
-                className="panel-page-control-btn"
-                value="next"
-                onClick={handlePage}
-              >
-                <i className="fi fi-br-angle-right"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-        <Container>
-          <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            mb={5}
-          >
-            <Typography variant="h4" gutterBottom>
-              Stores
-            </Typography>
-          </Stack>
+  const handleBulkDelete = async () => {
+    const result = await dispatch(deleteStore({ id: selected }));
+    handleClose();
+    if (result.payload.success) {
+      setIsSuccess(true);
+      notifySuccess();
+    } else if (!result.payload.success) {
+      notifyError();
+      setIsSuccess(false);
+    }
+    setIsRecordSelected(false)
+  };
 
-          <Card>
-            <TableContainer sx={{ minWidth: 800 }}>
-              <Table>
-                <UserListHead
-                  order={order}
-                  orderBy={orderBy}
-                  headLabel={TABLE_HEAD}
-                  rowCount={USERLIST.length}
-                  numSelected={selected.length}
-                  onRequestSort={handleRequestSort}
-                  onSelectAllClick={handleSelectAllClick}
-                />
-                <TableBody>
-                      {
-                         stores && stores.map((item) => (
-                          <TableRow
-                            hover
-                            key={item._id}
-                            tabIndex={-1}
-                            role="checkbox"
-                            // selected={selectedUser}
-                          >
-                            <TableCell padding="checkbox">
-                              <Checkbox
-                                // checked={selectedUser}
-                                // onChange={(event) => handleClick(event, name)}
-                              />
-                            </TableCell>
-
-                            <TableCell align="left">{item?.name}</TableCell>
-                            <TableCell align="left">{item?.email}</TableCell>
-                            <TableCell align="left">{item?.Suppliers.map(supplier => supplier.name)}</TableCell>
-                            <TableCell align="right">
-                              <IconButton
-                                size="large"
-                                color="inherit"
-                                onClick={e => handleOpenMenu(e, item._id)}
-                              >
-                                <Iconify icon={"eva:more-vertical-fill"} />
-                              </IconButton>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      }
-                    
-                  {emptyRows > 0 && (
-                    <TableRow style={{ height: 53 * emptyRows }}>
-                      <TableCell colSpan={6} />
-                    </TableRow>
-                  )}
-                </TableBody>
-
-                {isNotFound && (
-                  <TableBody>
-                    <TableRow>
-                      <TableCell align="center" colSpan={6} sx={{ py: 3 }}>
-                        <Paper
-                          sx={{
-                            textAlign: "center",
-                          }}
-                        >
-                          <Typography variant="h6" paragraph>
-                            Not found
-                          </Typography>
-
-                          <Typography variant="body2">
-                            No results found for &nbsp;
-                            <strong>&quot;{filterName}&quot;</strong>.
-                            <br /> Try checking for typos or using complete
-                            words.
-                          </Typography>
-                        </Paper>
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                )}
-              </Table>
-            </TableContainer>
-
-            <TablePagination
-              rowsPerPageOptions={[5, 10, 25]}
-              component="div"
-              count={pageItems.length}
-              rowsPerPage={rowsPerPage}
-              page={page}
-              onPageChange={handlePage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-            />
-          </Card>
-        </Container>
-
-        <Popover
-          open={Boolean(open)}
-          anchorEl={open}
-          onClose={handleCloseMenu}
-          anchorOrigin={{ vertical: "top", horizontal: "left" }}
-          transformOrigin={{ vertical: "top", horizontal: "right" }}
-          PaperProps={{
-            sx: {
-              p: 1,
-              width: 140,
-              "& .MuiMenuItem-root": {
-                px: 1,
-                typography: "body2",
-                borderRadius: 0.75,
-              },
-            },
-          }}
+  return (
+    <>
+      <Container>
+        <ToastContainer />
+        <ConfirmationModal
+          title={"Are you sure you want to delete this information?"}
+          open={openModal}
+          handleClose={handleClose}
+          handleSubmit={isRecordSelected ? handleBulkDelete : handleDelete}
+        />
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          mb={5}
         >
-          <MenuItem onClick={() => navigate(`/store-edit/${selectedItem}`)}>
-            <Iconify icon={"eva:edit-fill"} sx={{ mr: 2 }} />
-            Edit
-          </MenuItem>
+          <Typography variant="h4" gutterBottom>
+            Stores
+          </Typography>
+          <div className="panel-table">
+            <Button
+              onClick={() => navigate("/add-store")}
+              variant="contained"
+              sx={{ ml: "auto" }}
+            >
+              Add Store
+            </Button>
+          </div>
+        </Stack>
+        <Button
+          onClick={handleOpen}
+          variant="outlined"
+          sx={{ mb: 3 }}
+          disabled={selected.length < 1}
+        >
+          Delete Selected
+        </Button>
+        <Card>
+          <UserListToolbar
+            numSelected={selected.length}
+            filterName={filterName}
+            onFilterName={handleFilterByName}
+            selectedIds={selected}
+          />
+          <TableContainer sx={{ minWidth: 800 }}>
+            <Table>
+              <UserListHead
+                order={order}
+                orderBy={orderBy}
+                headLabel={TABLE_HEAD}
+                rowCount={stores.length}
+                numSelected={selected.length}
+                onRequestSort={handleRequestSort}
+                onSelectAllClick={handleSelectAllClick}
+              />
+              <TableBody>
+                {stores &&
+                  stores
+                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                    .map((item) => {
+                      const selectedUser = selected.indexOf(item._id) !== -1;
+                      return (
+                        <TableRow
+                          hover
+                          key={item._id}
+                          tabIndex={-1}
+                          role="checkbox"
+                          selected={selectedUser}
+                        >
+                          <TableCell padding="checkbox">
+                            <Checkbox
+                              checked={selectedUser}
+                              onChange={(event) => handleClick(event, item._id)}
+                            />
+                          </TableCell>
 
-          <MenuItem sx={{ color: "error.main" }}>
-            <Iconify icon={"eva:trash-2-outline"} sx={{ mr: 2 }} />
-            Delete
-          </MenuItem>
-        </Popover>
-        
-      </>
-    );
+                          <TableCell align="left">{item?.name}</TableCell>
+                          <TableCell align="left">{item?.email}</TableCell>
+                          <TableCell align="left">
+                            {item?.Suppliers.map((supplier) => supplier.name)}
+                          </TableCell>
+                          <TableCell align="right">
+                            <IconButton
+                              size="large"
+                              color="inherit"
+                              onClick={(e) => handleOpenMenu(e, item._id)}
+                            >
+                              <Iconify icon={"eva:more-vertical-fill"} />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+
+                {emptyRows > 0 && (
+                  <TableRow style={{ height: 53 * emptyRows }}>
+                    <TableCell colSpan={6} />
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          <TablePagination
+            rowsPerPageOptions={[5, 10, 25]}
+            component="div"
+            count={stores.length}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={handlePage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+          />
+        </Card>
+      </Container>
+
+      <Popover
+        open={Boolean(open)}
+        anchorEl={open}
+        onClose={handleCloseMenu}
+        anchorOrigin={{ vertical: "top", horizontal: "left" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        PaperProps={{
+          sx: {
+            p: 1,
+            width: 140,
+            "& .MuiMenuItem-root": {
+              px: 1,
+              typography: "body2",
+              borderRadius: 0.75,
+            },
+          },
+        }}
+      >
+        <MenuItem onClick={() => navigate(`/store-edit/${selectedItem}`)}>
+          <Iconify icon={"eva:edit-fill"} sx={{ mr: 2 }} />
+          Edit
+        </MenuItem>
+
+        <MenuItem onClick={handleOpen} sx={{ color: "error.main" }}>
+          <Iconify icon={"eva:trash-2-outline"} sx={{ mr: 2 }} />
+          Delete
+        </MenuItem>
+      </Popover>
+    </>
+  );
 };
 
 export default PanelTable;
