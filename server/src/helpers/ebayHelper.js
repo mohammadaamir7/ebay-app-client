@@ -24,7 +24,7 @@ exports.reviseItem = async (itemId, price, quantity, title, store, supplier, oAu
   </Item>
 </ReviseItemRequest>
 `;
-console.log(xmlPayload)
+// console.log(xmlPayload)
   // Construct headers for the request
   const headers = {
     "X-EBAY-API-CALL-NAME": "ReviseItem",
@@ -225,6 +225,8 @@ exports.getItem = async (itemId, store, supplier, oAuthToken) => {
         if (error) {
           console.error("Error parsing eBay API response:", error);
         } else {
+          if(result.GetItemResponse.Item){
+          
           // console.log("eBay API Response:", JSON.stringify(result, null, 2));
           const ebayItem = await EbayItems.findOne({ itemId });
 
@@ -233,11 +235,24 @@ exports.getItem = async (itemId, store, supplier, oAuthToken) => {
             previousQuantity: ebayItem?.item[0]?.Quantity[0] ? ebayItem?.item[0]?.Quantity[0] : 0,
             previousPrice: ebayItem?.item[0]?.StartPrice[0]._ ? ebayItem?.item[0]?.StartPrice[0]._ : 0,
             item: result.GetItemResponse.Item,
+            price: result.GetItemResponse.Item[0]?.StartPrice[0]._,
+            quantity: result.GetItemResponse.Item[0]?.Quantity[0],
+            soldQuantity: result.GetItemResponse.Item[0]?.SellingStatus[0]?.QuantitySold[0],
+            title: result.GetItemResponse.Item[0]?.Title[0],
+            brand: result.GetItemResponse.Item[0]?.ItemSpecifics[0]?.NameValueList.find(val => val.Name[0].toLowerCase() === "brand").Value[0],
+            sku: trimModelNumber(result.GetItemResponse.Item[0]?.ItemSpecifics[0]?.NameValueList.find(val => val.Name[0].toLowerCase() === "model").Value[0]),
             store,
             supplier,
-            fixedPrice: true
+            fixedPrice: true,
+            synced: true
           };
           await EbayItems.findOneAndUpdate({ itemId: initialData?.itemId }, initialData, { upsert: true });
+          return {success: true, message: 'Item revised successfully'}
+
+        }else{
+          return {success: false, message: 'token expired'}
+
+        }
           // Handle the eBay API response data here
         }
       });
@@ -274,90 +289,94 @@ exports.getItemsToList = (items, listings) => {
 };
 
 exports.reviseListings = async (items, listings, store, supplier, oAuthToken) => {
-  const storeData = await Store.findOne({ email: store });
-  const supplierData = await Supplier.findOne({ name: supplier });
-  console.log('len listings : ', listings.length)
-
+  try{
+    const storeData = await Store.findOne({ email: store });
+    const supplierData = await Supplier.findOne({ name: supplier });
+    console.log('len listings : ', listings.length)
   
-  for (let index = 0; index < items.length; index++) {
-    let markUp = 0
-    let requiredQuantity = supplierData?.defaultQuantity
-
-    const element = listings.find(listing => listing.item[0]?.ItemSpecifics && (trimModelNumber(listing.item[0]?.ItemSpecifics[0]?.NameValueList.find(val => val.Name[0].toLowerCase() === "model").Value[0]) === items[index].itemNumber));
-    if (element) {
-      const inventory = [
-        ...items[index].inventory.map((rec) => {
-          return { name: rec.warehouse, value: rec.quantity };
-        }),
-      ];
-      const totalQuantity = items[index].inventory.reduce((acc, val) => {
-        acc += val.quantity
-        return acc
-      }, 0)
-
-      const handlingCost = element?.item[0]?.ShippingDetails[0]?.CalculatedShippingRate[0]?.PackagingHandlingCosts ? element.item[0]?.ShippingDetails[0]?.CalculatedShippingRate[0]?.PackagingHandlingCosts[0] : 0
-      const shippingCost = element?.item[0]?.ShippingDetails[0]?.ShippingServiceOptions[0]?.ShippingServiceCost[0]?._
-
-      let price = 0
-
-      if(element?.fixedPrice){
-        price = parseFloat(element?.item[0]?.StartPrice[0]._)
-      } else {
-        if(storeData?.useStoreMarkUp){
-          markUp = storeData?.markUp
-        }else {
-          for (
-            let ind = 0;
-            ind < supplierData?.markUpRange?.length;
-            ind++
-          ) {
-            if (
-              parseFloat(items[index]?.price) >= parseFloat(supplierData?.markUpRange[ind]?.min) &&
-              parseFloat(items[index]?.price) < parseFloat(supplierData?.markUpRange[ind]?.max)
+    
+    for (let index = 0; index < items.length; index++) {
+      let markUp = 0
+      let requiredQuantity = supplierData?.defaultQuantity
+  
+      const element = listings.find(listing => listing.item[0]?.ItemSpecifics && (trimModelNumber(listing.item[0]?.ItemSpecifics[0]?.NameValueList.find(val => val.Name[0].toLowerCase() === "model").Value[0]) === items[index].itemNumber));
+      if (element) {
+        const inventory = [
+          ...items[index].inventory.map((rec) => {
+            return { name: rec.warehouse, value: rec.quantity };
+          }),
+        ];
+        const totalQuantity = items[index].inventory.reduce((acc, val) => {
+          acc += val.quantity
+          return acc
+        }, 0)
+  
+        const handlingCost = element?.item[0]?.ShippingDetails[0]?.CalculatedShippingRate[0]?.PackagingHandlingCosts ? element.item[0]?.ShippingDetails[0]?.CalculatedShippingRate[0]?.PackagingHandlingCosts[0] : 0
+        const shippingCost = element?.item[0]?.ShippingDetails[0]?.ShippingServiceOptions[0]?.ShippingServiceCost[0]?._
+  
+        let price = 0
+  
+        if(element?.fixedPrice){
+          price = parseFloat(element?.item[0]?.StartPrice[0]._)
+        } else {
+          if(storeData?.useStoreMarkUp){
+            markUp = storeData?.markUp
+          }else {
+            for (
+              let ind = 0;
+              ind < supplierData?.markUpRange?.length;
+              ind++
             ) {
-              markUp = supplierData?.markUpRange[ind]?.markUp
+              if (
+                parseFloat(items[index]?.price) >= parseFloat(supplierData?.markUpRange[ind]?.min) &&
+                parseFloat(items[index]?.price) < parseFloat(supplierData?.markUpRange[ind]?.max)
+              ) {
+                markUp = supplierData?.markUpRange[ind]?.markUp
+              }
             }
           }
+          if(markUp == 0) markUp = storeData?.markUp
+          
+          const markUpAmount = parseFloat(items[index]?.price) * (parseFloat(markUp) / 100)
+  
+          const initialPrice = (markUpAmount) + (parseFloat(handlingCost) + parseFloat(shippingCost) + parseFloat(items[index]?.price))
+          price = initialPrice ? initialPrice : 0
         }
-        if(markUp == 0) markUp = storeData?.markUp
         
-        const markUpAmount = parseFloat(items[index]?.price) * (parseFloat(markUp) / 100)
-
-        const initialPrice = (markUpAmount) + (parseFloat(handlingCost) + parseFloat(shippingCost) + parseFloat(items[index]?.price))
-        price = initialPrice ? initialPrice : 0
-      }
-      
-      console.log('price : ', parseFloat(price.toFixed(2)))
-      
-      for (
-        let index = 0;
-        index < storeData?.quantityOffset?.length;
-        index++
-      ) {
-        if (
-          price >= parseInt(storeData?.quantityOffset[index]?.min) &&
-          price < parseInt(storeData?.quantityOffset[index]?.max)
+        console.log('price : ', parseFloat(price.toFixed(2)))
+        
+        for (
+          let index = 0;
+          index < storeData?.quantityOffset?.length;
+          index++
         ) {
-          requiredQuantity =
-            (items[index]?.quantity - supplierData?.quantityOffset) <
-            storeData?.quantityOffset[index]?.quantity
-              ? (items[index]?.quantity - supplierData?.quantityOffset)
-              : storeData?.quantityOffset[index]?.quantity;
+          if (
+            price >= parseInt(storeData?.quantityOffset[index]?.min) &&
+            price < parseInt(storeData?.quantityOffset[index]?.max)
+          ) {
+            requiredQuantity =
+              (items[index]?.quantity - supplierData?.quantityOffset) <
+              storeData?.quantityOffset[index]?.quantity
+                ? (items[index]?.quantity - supplierData?.quantityOffset)
+                : storeData?.quantityOffset[index]?.quantity;
+          }
         }
+  
+        console.log('quantity : ', requiredQuantity)
+  
+        await this.reviseItem(
+          element.item[0]?.ItemID[0],
+          parseFloat(price.toFixed(2)),
+          requiredQuantity,
+          element.item[0]?.Title[0],
+          store, 
+          supplier,
+          oAuthToken
+        );
       }
-
-      console.log('quantity : ', requiredQuantity)
-
-      await this.reviseItem(
-        element.item[0]?.ItemID[0],
-        parseFloat(price.toFixed(2)),
-        requiredQuantity,
-        element.item[0]?.Title[0],
-        store, 
-        supplier,
-        oAuthToken
-      );
     }
+  }catch(err){
+    throw new Error(err)
   }
 };
 
@@ -374,11 +393,15 @@ exports.addNewListings = async (items) => {
 };
 
 exports.fetchListingsAndPopulateDB = async (store = "ebaystore@test.com", supplier, oAuthToken) => {
-  const ebayListings = await getMyEbaySelling(oAuthToken)
-  console.log('len : ', ebayListings.length)
-  for (let index = 0; index < ebayListings.length; index++) {
-    await this.getItem(ebayListings[index].ItemID[0], store, supplier, oAuthToken)
+  try{
+    const ebayListings = await getMyEbaySelling(oAuthToken)
+    console.log('len : ', ebayListings.length)
+    for (let index = 0; index < ebayListings.length; index++) {
+      await this.getItem(ebayListings[index].ItemID[0], store, supplier, oAuthToken)
+    }
+  
+    return true
+  }catch(err){
+    throw new Error(err)
   }
-
-  return true
 }

@@ -221,9 +221,9 @@ const fetchItems = async (page, pageItemsUrls) => {
             productName: $('div.pageHeader').text().trim(),
             itemNumber: $('table.buyProductForm > tbody > tr:nth-child(1) > td:nth-child(2)').text().trim(),
             msrp: $('table.buyProductForm > tbody > tr:nth-child(2) > td:nth-child(2)').text().trim(),
-            price: $('table.buyProductForm > tbody > tr:nth-child(3) > td:nth-child(2)').text().trim(),
+            price: parseFloat($('table.buyProductForm > tbody > tr:nth-child(3) > td:nth-child(2)').text().trim()),
             inventory: [],
-            availableUnits: 0,
+            quantity: 0,
             brand: $('#ctl00_wpm_ShowProduct_ctl06_ManufacturerLinkButton').text().trim(),
             imageUrl: `${baseUrl}/${$('#ctl00_wpm_ShowProduct_ctl05_ProductImage').attr('src')}`,
             itemUrl: url,
@@ -254,7 +254,7 @@ const fetchItems = async (page, pageItemsUrls) => {
             };
         
             itemInfo['inventory'].push(warehouse);
-            itemInfo['availableUnits'] += warehouseQuantity;
+            itemInfo['quantity'] += warehouseQuantity;
         });        
         // save and update items
         await Item.findOneAndUpdate({ itemNumber: itemInfo.itemNumber }, itemInfo, { upsert: true });
