@@ -41,7 +41,7 @@ exports.sendItems = async (req, res) => {
       } else if (key === "quantity") {
         whereClause = {
           ...whereClause,
-          availableUnits: { $gte: quantity?.min, $lte: quantity?.max },
+          quantity: { $gte: quantity?.min, $lte: quantity?.max },
         };
       }
     }
@@ -86,21 +86,12 @@ exports.sendListings = async (req, res) => {
       .limit(parseInt(limit, 10));
 
     const total = await EbayItems.countDocuments(whereClause);
-    console.log("total : ", total);
 
     const listingsData = items.map((item) => {
       return {
         _id: item._id,
         itemId: item.itemId,
-        sku: item?.item[0]?.ItemSpecifics[0]?.NameValueList?.find(
-          (val) => val.Name[0].toLowerCase() === "model"
-        )?.Value[0]
-          ? trimModelNumber(
-              item.item[0]?.ItemSpecifics[0]?.NameValueList.find(
-                (val) => val.Name[0].toLowerCase() === "model"
-              ).Value[0]
-            )
-          : "SKU",
+        sku: item?.sku,
         oem: "OEM",
         title: item.item[0].Title[0],
         startPrice: item.item[0].StartPrice[0]._,
@@ -116,6 +107,31 @@ exports.sendListings = async (req, res) => {
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: err.message });
+  }
+};
+
+exports.fetchListings = async (req, res) => {
+  const { data } = req.query;
+  
+  try {
+    const storeData = await Store.findOne({ email: data.store });
+    await fetchListingsAndPopulateDB(storeData?.email, 'volutone', storeData?.oAuthToken);
+
+    res.status(200).json({ success: true, message: "Listings Fetched Successfully" });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.fetchListingsBrands = async (req, res) => {  
+  try {
+    const brands = [...new Set((await EbayItems.find({ }, "brand")).map(rec => rec.brand))];
+
+    res.status(200).json({ success: true, message: "Listings Fetched Successfully", brands });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
@@ -219,17 +235,28 @@ exports.deleteStore = async (req, res) => {
   }
 };
 
+exports.deleteSupplier = async (req, res) => {
+  const { ids } = req.query;
+  try {
+      await Supplier.deleteMany({ _id: { $in: ids } });
+      res.status(200).json({ message: "Supplier Deleted Successfully", success: true });
+  } catch (err) {
+      console.log(err);
+      res.status(500).json({ message: err.message, success: false });
+  }
+};
+
 exports.deleteItem = async (req, res) => {
     const { ids } = req.query;
     console.log("id : ", ids);
 
-    // try {
-    //     await Item.deleteMany({ itemId: { $in: ids } });
-    //     res.status(200).json({ message: "Items Deleted Successfully", success: true });
-    // } catch (err) {
-    //     console.log(err);
-    //     res.status(500).json({ message: err.message, success: false });
-    // }
+    try {
+        await Item.deleteMany({ _id: { $in: ids } });
+        res.status(200).json({ message: "Items Deleted Successfully", success: true });
+    } catch (err) {
+        console.log(err);
+        res.status(500).json({ message: err.message, success: false });
+    }
   };
 
 exports.sendSuppliers = async (req, res) => {
@@ -302,11 +329,7 @@ exports.sendListingInfo = async (req, res) => {
     const listing = {
       _id: item?._id,
       itemId: item?.itemId,
-      sku: trimModelNumber(
-        item?.item[0]?.ItemSpecifics[0]?.NameValueList.find(
-          (val) => val.Name[0].toLowerCase() === "model"
-        ).Value[0]
-      ),
+      sku: item?.sku,
       oem: "OEM",
       title: item?.item[0].Title[0],
       startPrice: item?.item[0].StartPrice[0]._,
@@ -379,19 +402,19 @@ exports.updateItemInfo = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const updatedItem = await Item.findByIdAndUpdate(id, req.body.updatedItem, {
+    const updatedItem = await Item.findByIdAndUpdate(id, req.body, {
       new: true,
       runValidators: true,
     });
 
     if (!updatedItem) {
-      return res.status(404).json({ message: "Item not found" });
+      return res.status(404).json({ success: false, message: "Item not found" });
     }
 
-    res.status(200).json({ success: true, data: updatedItem });
+    res.status(200).json({ success: true, data: updatedItem, message: "Item Updated Successfully" });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
@@ -456,11 +479,7 @@ exports.updateListingInfo = async (req, res) => {
     // if (!updatedItem) {
     //     return res.status(404).json({ message: 'Item not found' });
     // }
-    if(result.success){
-      res.status(200).json({ success: true, data: {} });
-    }else{
-      throw new Error()
-    }
+    res.status(200).json({ success: true, data: {} });
   } catch (err) {
     // console.error(err);
     console.error('catch');
@@ -470,7 +489,7 @@ exports.updateListingInfo = async (req, res) => {
 
 exports.updateStoreInfo = async (req, res) => {
   const { id } = req.params;
-  console.log(req.body);
+
   const {
     name,
     markUp,
@@ -503,7 +522,7 @@ exports.updateStoreInfo = async (req, res) => {
     res.status(200).json({ success: true, data: {} });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
@@ -592,7 +611,7 @@ exports.addSupplier = async (req, res) => {
 
 exports.addStore = async (req, res) => {
   try {
-    const { name, email, password, redirectUrl, currentSupplier } = req.body;
+    const { name, email, password, redirectUrl, markUp, currentSupplier } = req.body;
     let supplierIds = await Supplier.find({ name: { $in: currentSupplier } }, "_id");
 
     supplierIds = supplierIds.map((obj) => obj._id);
@@ -602,6 +621,7 @@ exports.addStore = async (req, res) => {
       email,
       password,
       redirectUrl,
+      markUp,
       Suppliers: supplierIds,
     });
 

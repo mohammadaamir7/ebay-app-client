@@ -1,7 +1,7 @@
 exports.queryhandler = (req, res, next) => {
   try {
     const { filters } = req.query;
-    const { stores, suppliers, price, quantity, soldQuantity, searchTerm } =
+    const { stores, suppliers, price, quantity, soldQuantity, searchTerm, brand } =
       JSON.parse(filters);
     const filtersObject = { ...JSON.parse(filters) };
     let whereClause = {};
@@ -16,6 +16,8 @@ exports.queryhandler = (req, res, next) => {
       } else {
         if (key === "stores") {
           whereClause = { ...whereClause, store: { $in: stores } };
+        } else if (key === "brand") {
+          whereClause = { ...whereClause, brand };
         } else if (key === "suppliers") {
           whereClause = { ...whereClause, supplier: { $in: suppliers } };
         } else if (key === "price") {
@@ -44,6 +46,7 @@ exports.queryhandler = (req, res, next) => {
       whereClause = {
         ...whereClause,
         $or: [
+          { itemId: { $regex: `${searchTerm}`, $options: "i" } },
           { supplier: { $regex: `${searchTerm}`, $options: "i" } },
           { store: { $regex: `${searchTerm}`, $options: "i" } },
           { title: { $regex: `${searchTerm}`, $options: "i" } },

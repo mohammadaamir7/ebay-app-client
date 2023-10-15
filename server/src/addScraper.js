@@ -86,7 +86,7 @@ const data = [
 
 const main = async () => {
     try {
-        await mongoose.connect('mongodb+srv://root:5VxAe8H1PRsVmMia@cluster0.pz5kkjn.mongodb.net/test?retryWrites=true&w=majority', {
+        await mongoose.connect('mongodb+srv://root:3kwfteJDv2NKJueh@cluster0.pz5kkjn.mongodb.net/test?retryWrites=true&w=majority', {
             useNewUrlParser: true,
             useUnifiedTopology: true,
         });

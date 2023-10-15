@@ -20,16 +20,17 @@ async function setupSocket(server) {
           try {
             console.log("sync-listings : ", data);
 
-            const { site, store } = data;
-            const siteData = await ScraperConfig.find({ site });
+            const { site, store, config } = data;
             const storeData = await Store.findOne({ email: store });
             const { scrape } = require(`../scrapers/${site}`);
-            // const store = "ebaystore@test.com"
             
-            await scrape(siteData[0].config)
+            // await scrape(config)
             await synchronizeData(store, site, storeData?.oAuthToken);
-            const items = await Item.find({ site });
-            io.emit("sync-listings", items);
+            
+            io.emit("sync-listings", {
+              success: true,
+              message: "Listings Synced Successfully",
+            });
 
           } catch (err) {
             console.log(err);
@@ -43,20 +44,20 @@ async function setupSocket(server) {
 
     const db = mongoose.connection;
     const collection = db.collection('scraper_configs');
-    const changeStream = await collection.watch();
+    // const changeStream = await collection.watch();
 
-    changeStream.on('change', async (change) => {
-        if (change.operationType === 'update') {
-            const documentId = change.documentKey._id;
-            const updatedConfigDoc = await collection.findOne({ _id: documentId });
+    // changeStream.on('change', async (change) => {
+    //     if (change.operationType === 'update') {
+    //         const documentId = change.documentKey._id;
+    //         const updatedConfigDoc = await collection.findOne({ _id: documentId });
 
-            io.emit('config-updated', { site: updatedConfigDoc.site, updatedConfigDoc: updatedConfigDoc.config });
+    //         io.emit('config-updated', { site: updatedConfigDoc.site, updatedConfigDoc: updatedConfigDoc.config });
             
-            if (!updatedConfigDoc.config.control.instance) {
-                io.emit('scraper-control', { site: updatedConfigDoc.site, updatedConfigDoc: updatedConfigDoc.config });
-            }
-        }
-    });
+    //         if (!updatedConfigDoc.config.control.instance) {
+    //             io.emit('scraper-control', { site: updatedConfigDoc.site, updatedConfigDoc: updatedConfigDoc.config });
+    //         }
+    //     }
+    // });
 
     return io;
 }

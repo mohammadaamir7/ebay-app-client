@@ -5,7 +5,7 @@ const Item = require("../models/Item");
 const Store = require("../models/Store");
 const Supplier = require("../models/Supplier");
 
-const trimModelNumber = (modelNumer) => modelNumer.split("-").join("");
+const trimModelNumber = (modelNumber) => modelNumber ? modelNumber?.split("-").join("") : "SKU";
 
 exports.reviseItem = async (itemId, price, quantity, title, store, supplier, oAuthToken) => {
   let item = {};
@@ -32,25 +32,26 @@ exports.reviseItem = async (itemId, price, quantity, title, store, supplier, oAu
     "X-EBAY-API-COMPATIBILITY-LEVEL": "1227", // Replace with the required compatibility level
     "Content-Type": "text/xml",
   };
+  await this.getItem(itemId, store, supplier, oAuthToken, true)
 
   // Make the API request
-  axios
-    .post(process.env.EBAY_ENDPOINT, xmlPayload, { headers })
-    .then((response) => {
-      xml2js.parseString(response.data, async (error, result) => {
-        if (error) {
-          console.error("Error parsing eBay API response:", error);
-        } else {
-          // console.log("eBay API Response:", JSON.stringify(result, null, 2));
-          item = result;
-          // Handle the eBay API response data here
-         await this.getItem(itemId, store, supplier, oAuthToken)
-        }
-      });
-    })
-    .catch((error) => {
-      console.error("Error making eBay API request:", error);
-    });
+//   axios
+//     .post(process.env.EBAY_ENDPOINT, xmlPayload, { headers })
+//     .then((response) => {
+//       xml2js.parseString(response.data, async (error, result) => {
+//         if (error) {
+//           console.error("Error parsing eBay API response:", error);
+//         } else {
+//           // console.log("eBay API Response:", JSON.stringify(result, null, 2));
+//           item = result;
+//           // Handle the eBay API response data here
+//          await this.getItem(itemId, store, supplier, oAuthToken, true)
+//         }
+//       });
+//     })
+//     .catch((error) => {
+//       console.error("Error making eBay API request:", error);
+//     });
 };
 
 exports.addItem = async (title, model, brand, price, quantity) => {
@@ -155,10 +156,6 @@ const getMyEbaySelling = async (oAuthToken) => {
     <ActiveList>
     <Include>true</Include>
       <Sort>TimeLeft</Sort>
-      <Pagination>
-        <EntriesPerPage>2</EntriesPerPage>
-        <PageNumber>1</PageNumber>
-      </Pagination>
     </ActiveList>
   </GetMyeBaySellingRequest>
 `;
@@ -195,7 +192,8 @@ const getMyEbaySelling = async (oAuthToken) => {
   return data;
 };
 
-exports.getItem = async (itemId, store, supplier, oAuthToken) => {
+exports.getItem = async (itemId, store, supplier, oAuthToken, synced = false) => {
+  console.log('synced : ', synced)
   let data = [];
 
   const xmlPayload = `
@@ -229,6 +227,13 @@ exports.getItem = async (itemId, store, supplier, oAuthToken) => {
           
           // console.log("eBay API Response:", JSON.stringify(result, null, 2));
           const ebayItem = await EbayItems.findOne({ itemId });
+          
+          let sku = ""
+          if(trimModelNumber(result.GetItemResponse.Item[0]?.ItemSpecifics[0]?.NameValueList?.find(val => val.Name[0].toLowerCase() === "model")?.Value[0]).split(" ").length > 1){
+            sku = trimModelNumber(result.GetItemResponse.Item[0]?.ItemSpecifics[0]?.NameValueList?.find(val => val.Name[0].toLowerCase() === "model")?.Value[0]).split(" ")[1]
+          }else {
+            sku = trimModelNumber(result.GetItemResponse.Item[0]?.ItemSpecifics[0]?.NameValueList?.find(val => val.Name[0].toLowerCase() === "model")?.Value[0])
+          }
 
           const initialData = {
             itemId: result.GetItemResponse.Item[0]?.ItemID[0],
@@ -239,13 +244,14 @@ exports.getItem = async (itemId, store, supplier, oAuthToken) => {
             quantity: result.GetItemResponse.Item[0]?.Quantity[0],
             soldQuantity: result.GetItemResponse.Item[0]?.SellingStatus[0]?.QuantitySold[0],
             title: result.GetItemResponse.Item[0]?.Title[0],
-            brand: result.GetItemResponse.Item[0]?.ItemSpecifics[0]?.NameValueList.find(val => val.Name[0].toLowerCase() === "brand").Value[0],
-            sku: trimModelNumber(result.GetItemResponse.Item[0]?.ItemSpecifics[0]?.NameValueList.find(val => val.Name[0].toLowerCase() === "model").Value[0]),
+            brand: result.GetItemResponse.Item[0]?.ItemSpecifics[0]?.NameValueList.find(val => val.Name[0].toLowerCase() === "brand")?.Value[0],
+            sku,
             store,
             supplier,
             fixedPrice: true,
-            synced: true
+            synced
           };
+
           await EbayItems.findOneAndUpdate({ itemId: initialData?.itemId }, initialData, { upsert: true });
           return {success: true, message: 'Item revised successfully'}
 
@@ -263,7 +269,7 @@ exports.getItem = async (itemId, store, supplier, oAuthToken) => {
 };
 
 exports.getItemsToRevise = (items, listings) => {
-  const idsToFilter = listings.map(list => list.item[0]?.ItemSpecifics[0]?.NameValueList.find(val => val.Name[0].toLowerCase() === "model") ? trimModelNumber(list.item[0]?.ItemSpecifics[0]?.NameValueList.find(val => val.Name[0].toLowerCase() === "model").Value[0]) : null);
+  const idsToFilter = listings.map(list => list?.sku);
   const filteredData = items.filter(item => idsToFilter.includes(item.itemNumber))
   // const filteredData = items.filter((item) =>
   //   listings.some((list) => {
@@ -293,13 +299,15 @@ exports.reviseListings = async (items, listings, store, supplier, oAuthToken) =>
     const storeData = await Store.findOne({ email: store });
     const supplierData = await Supplier.findOne({ name: supplier });
     console.log('len listings : ', listings.length)
+    console.log('len items : ', items.length)
   
     
     for (let index = 0; index < items.length; index++) {
       let markUp = 0
       let requiredQuantity = supplierData?.defaultQuantity
   
-      const element = listings.find(listing => listing.item[0]?.ItemSpecifics && (trimModelNumber(listing.item[0]?.ItemSpecifics[0]?.NameValueList.find(val => val.Name[0].toLowerCase() === "model").Value[0]) === items[index].itemNumber));
+      // const element = listings.find(listing => listing.item[0]?.ItemSpecifics && (trimModelNumber(listing.item[0]?.ItemSpecifics[0]?.NameValueList.find(val => val.Name[0].toLowerCase() === "model").Value[0]) === items[index].itemNumber));
+      const element = listings.find(listing => listing.sku === items[index].itemNumber);
       if (element) {
         const inventory = [
           ...items[index].inventory.map((rec) => {
@@ -346,19 +354,19 @@ exports.reviseListings = async (items, listings, store, supplier, oAuthToken) =>
         console.log('price : ', parseFloat(price.toFixed(2)))
         
         for (
-          let index = 0;
-          index < storeData?.quantityOffset?.length;
-          index++
+          let ind = 0;
+          ind < supplierData?.quantityOffset?.length;
+          ind++
         ) {
           if (
-            price >= parseInt(storeData?.quantityOffset[index]?.min) &&
-            price < parseInt(storeData?.quantityOffset[index]?.max)
+            price >= parseInt(supplierData?.quantityOffset[ind]?.min) &&
+            price < parseInt(supplierData?.quantityOffset[ind]?.max)
           ) {
             requiredQuantity =
-              (items[index]?.quantity - supplierData?.quantityOffset) <
-              storeData?.quantityOffset[index]?.quantity
-                ? (items[index]?.quantity - supplierData?.quantityOffset)
-                : storeData?.quantityOffset[index]?.quantity;
+              (items[index]?.quantity - supplierData?.quantityAdjustment) <
+              supplierData?.quantityOffset[ind]?.quantity
+                ? (items[index]?.quantity - supplierData?.quantityAdjustment)
+                : supplierData?.quantityOffset[ind]?.quantity;
           }
         }
   
@@ -376,7 +384,7 @@ exports.reviseListings = async (items, listings, store, supplier, oAuthToken) =>
       }
     }
   }catch(err){
-    throw new Error(err)
+    // throw new Error(err)
   }
 };
 

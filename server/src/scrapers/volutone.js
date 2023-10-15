@@ -27,17 +27,17 @@ let itemCount = 0;
 const scrape = async (initial) => {
     config = initial;
 
-    await ScraperConfig.updateOne(
-        { site: site },
-        {
-            $set: {
-                'config.control.instance': true,
-                'config.status.text': 'Running',
-                'config.status.pages': 0,
-                'config.status.items': 0
-            }
-        }
-    );
+    // await ScraperConfig.updateOne(
+    //     { site: site },
+    //     {
+    //         $set: {
+    //             'config.control.instance': true,
+    //             'config.status.text': 'Running',
+    //             'config.status.pages': 0,
+    //             'config.status.items': 0
+    //         }
+    //     }
+    // );
 
     itemCount = 0;
 
@@ -53,6 +53,7 @@ const scrape = async (initial) => {
         },
         executablePath: mainPuppeteer.executablePath(),
     });
+    console.log('browser : ')
 
     const page = await browser.newPage();
 
@@ -77,7 +78,7 @@ const scrape = async (initial) => {
                 }
             });
         }
-
+        console.log('page : ')
         let manufacturerInfo = await fetchManufacturerInfo(page);
 
         if (config.control.type === 'brandRefresh') {
@@ -87,14 +88,14 @@ const scrape = async (initial) => {
 
         if (config.control.paused) {
             manufacturerInfo = sliceArray(manufacturerInfo, 'title', config.checkpoint.brand);
-            console.log(manufacturerInfo);
+            // console.log(manufacturerInfo);
         }
 
-        console.log(manufacturerInfo);
+        // console.log(manufacturerInfo);
 
         for (const manufacturer of manufacturerInfo) {
             await ScraperConfig.updateOne(
-                { site: site },
+                { site: config?.site },
                 { $set: { 'config.checkpoint.brand': manufacturer.title } }
             );
 
@@ -103,6 +104,7 @@ const scrape = async (initial) => {
                 await configUpdate();
                 if (config.control.action !== 'start') break;
         }
+
     } catch (err) {
         console.log(err);
     } finally {
@@ -140,15 +142,15 @@ const fetchManufacturerInfo = async (page) => {
             manufacturerInfo.push({ title: manufacturerName, url: `${baseUrl}/${manufacturerUrl}` });
         }
     });
-
+    console.log('manufacturerInfo object: ', manufacturerInfo)
     if (config.control.type === 'brandRefresh') {
-        await ScraperConfig.updateMany(
-            { site: site },
+        await ScraperConfig.updateOne(
+            { site: config?.site },
             { $set: { brands: manufacturerInfo.map((obj) => obj.title) } }
         );
     }
     
-    console.log(manufacturerInfo);
+    // console.log('manufacturerInfo : ', manufacturerInfo);
 
     return manufacturerInfo;
 }
@@ -183,7 +185,7 @@ const fetchManufacturer = async (page, manufacturer) => {
         console.log(`Scraped Page ${i} of ${totalPages}`);
 
         await ScraperConfig.updateOne(
-            { site: site },
+            { site: config?.site },
             { $set: { 'config.checkpoint.page': i, 'config.status.pages': i } }
         );
     }
@@ -215,13 +217,12 @@ const fetchItems = async (page, pageItemsUrls) => {
 
         const content = await page.content();
         const $ = cheerio.load(content);
-
         const itemInfo = {
             site: 'volutone',
             productName: $('div.pageHeader').text().trim(),
             itemNumber: $('table.buyProductForm > tbody > tr:nth-child(1) > td:nth-child(2)').text().trim(),
             msrp: $('table.buyProductForm > tbody > tr:nth-child(2) > td:nth-child(2)').text().trim(),
-            price: parseFloat($('table.buyProductForm > tbody > tr:nth-child(3) > td:nth-child(2)').text().trim()),
+            price: $('table.buyProductForm > tbody > tr:nth-child(3) > td:nth-child(2)').text().trim().split("$")[1],
             inventory: [],
             quantity: 0,
             brand: $('#ctl00_wpm_ShowProduct_ctl06_ManufacturerLinkButton').text().trim(),
@@ -245,9 +246,15 @@ const fetchItems = async (page, pageItemsUrls) => {
             const warehouseText = $(this).text().trim();
             const warehouseParts = warehouseText.split(":");
             const warehouseName = warehouseParts[0].trim();
-            console.log(warehouseParts)
-            const warehouseQuantity = parseInt(warehouseParts[1]);
-        
+            console.log('warehouseParts : ', warehouseParts[1])
+            
+            let warehouseQuantity = 0
+            
+            if (warehouseParts[1]) {
+              warehouseQuantity = parseInt(warehouseParts[1]);
+            }
+
+
             const warehouse = {
                 "warehouse": warehouseName,
                 "quantity": warehouseQuantity
@@ -256,16 +263,22 @@ const fetchItems = async (page, pageItemsUrls) => {
             itemInfo['inventory'].push(warehouse);
             itemInfo['quantity'] += warehouseQuantity;
         });        
+ 
+        if(itemInfo.price){
+            itemInfo['price'] = parseFloat(itemInfo?.price)
+        }else {
+            itemInfo['price'] = 0.0
+        }
         // save and update items
         await Item.findOneAndUpdate({ itemNumber: itemInfo.itemNumber }, itemInfo, { upsert: true });
         itemCount++;
 
         await ScraperConfig.updateOne(
-            { site: site },
+            { site: config?.site },
             { $set: { 'config.status.items': itemCount } }
         );
 
-        console.log(itemInfo)
+        // console.log(itemInfo)
         console.log(`Scraped product ${index + 1} of ${pageItemsUrls.length}`);
     }
 }
@@ -281,7 +294,7 @@ const sliceArray = (array, key, value) => {
 
 const resetConfig = async () => {
     await ScraperConfig.updateOne(
-        { site: site },
+        { site: config?.site },
         {
             $set: {
                 'config.control.action': '',
@@ -295,8 +308,8 @@ const resetConfig = async () => {
 }
 
 const configUpdate = async () => {
-    const result = await ScraperConfig.find({ site: site });
-    config = result[0].config;
+    // const result = await ScraperConfig.find({ site: site });
+    // config = result[0].config;
 }
 
 module.exports = { scrape };
