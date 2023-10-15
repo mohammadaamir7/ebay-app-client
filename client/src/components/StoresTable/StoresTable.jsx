@@ -121,6 +121,7 @@ const PanelTable = () => {
   const [openModal, setOpenModal] = React.useState(false);
   const handleOpen = () => setOpenModal(true);
   const handleClose = () => setOpenModal(false);
+  const [isReRender, setIsReRender] = useState(false);
 
   useEffect(() => {
     dispatch(getConfigInfo());
@@ -132,7 +133,7 @@ const PanelTable = () => {
     } else {
       dispatch(getStores({ page: currentPage, limit: limit }));
     }
-  }, [currentPage, status, isSuccess]);
+  }, [currentPage, status, isSuccess, isReRender]);
 
   const [open, setOpen] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -281,8 +282,10 @@ const PanelTable = () => {
   const handleDelete = async () => {
     const result = await dispatch(deleteStore({ id: [selectedItem] }));
     handleClose();
+    handleCloseMenu();
     if (result.payload.success) {
       setIsSuccess(true);
+      setIsReRender(prev => !prev)
       notifySuccess();
     } else if (!result.payload.success) {
       notifyError();
@@ -296,6 +299,7 @@ const PanelTable = () => {
     handleClose();
     if (result.payload.success) {
       setIsSuccess(true);
+      setIsReRender(prev => !prev)
       notifySuccess();
     } else if (!result.payload.success) {
       notifyError();
@@ -347,6 +351,7 @@ const PanelTable = () => {
             filterName={filterName}
             onFilterName={handleFilterByName}
             selectedIds={selected}
+            isSearchable={false}
           />
           <TableContainer sx={{ minWidth: 800 }}>
             <Table>

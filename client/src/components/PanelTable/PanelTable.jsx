@@ -68,7 +68,156 @@ const TABLE_HEAD = [
   { id: "" },
 ];
 
-// ----------------------------------------------------------------------
+const brands = [
+  "2GIG",
+  "Active Thermal Mgmt",
+  "ACURUS",
+  "ALARM.COM",
+  "Altronix",
+  "Amazon",
+  "American Recorder Technology",
+  "Amplifier Technologies",
+  "Apple",
+  "Araknis Networks",
+  "Arlington",
+  "Arlo Network Cameras",
+  "Atlona",
+  "Attero Tech",
+  "AudioControl",
+  "August",
+  "Autonomic",
+  "AVPro Edge",
+  "BenQ",
+  "Binary",
+  "BrightSign",
+  "Calrad Electronics",
+  "Carlon",
+  "Chief",
+  "Clare Controls",
+  "ClareVision",
+  "ClearOne",
+  "Cleerline",
+  "Da Lite",
+  "Definitive Technology",
+  "Denon",
+  "Digital Watchdog",
+  "Direct Connect",
+  "DirectUPS",
+  "DoorBird",
+  "Dottie",
+  "Dragonfly",
+  "Dynamat",
+  "Earthquake Sound",
+  "Ecobee",
+  "EERO",
+  "ELK Products",
+  "Episode",
+  "Evolution by Vanco",
+  "Exacq",
+  "Flexson",
+  "Fortress Chairs",
+  "FSR Inc",
+  "Furman",
+  "FX LUMINAIRE",
+  "Google",
+  "GRI",
+  "Holland Electronics",
+  "Hosa",
+  "House Logix",
+  "Hunt",
+  "INNEOS",
+  "IOGear",
+  "iPort",
+  "Jasco",
+  "Jensen Transformers",
+  "Just Add Power",
+  "JVC",
+  "Kantech",
+  "KEF",
+  "Klipsch",
+  "Kwikset",
+  "Labor Saving Devices",
+  "Legion",
+  "Leviton Security & Automation",
+  "LG COMMERCIAL",
+  "LG Electronics",
+  "LiftMaster",
+  "LINEAR LLC",
+  "Louroe",
+  "Luma Surveillance",
+  "Lutron",
+  "Luxul",
+  "MantelMount",
+  "Marantz",
+  "Middle Atlantic",
+  "Midlite Products",
+  "Nest Labs",
+  "ON-Q-Legrand",
+  "OPTEX",
+  "OvrC",
+  "Panamax",
+  "Parasound",
+  "Planar",
+  "Planet Waves",
+  "Platinum Tools",
+  "Primacoustic",
+  "Pro Control",
+  "Qolsys",
+  "QSC",
+  "Rachio",
+  "Rack-a-Tiers",
+  "Raytec",
+  "Resolution Products",
+  "Ring",
+  "Rockustics",
+  "Roku",
+  "Router Limits",
+  "RTI",
+  "Russound",
+  "Samsung",
+  "Sanus",
+  "Screen Innovations",
+  "Seco-larm",
+  "Sense",
+  "SEURA",
+  "Shure",
+  "SolidDrive",
+  "Sonance Outdoor Products",
+  "Sonos",
+  "SONY",
+  "Sony Commercial",
+  "SoundTube",
+  "Spinetix",
+  "Strong Mounts",
+  "Strong Racks",
+  "SunBrite",
+  "Sunfire",
+  "Telguard",
+  "Total Control Light",
+  "TP-Link",
+  "TRIAD",
+  "Triplett",
+  "Ubiquiti",
+  "Universal Power Group",
+  "Universal Remote Control",
+  "Vanco",
+  "Veracity",
+  "Versiton",
+  "Vertical Cable",
+  "Victrola",
+  "Visualint",
+  "Vivitek",
+  "Vivotek",
+  "WattBox",
+  "Williams Sound",
+  "Wilson Electronics",
+  "Wirepath",
+  "Xantech",
+  "Yale Security",
+  "Yamaha Electronics",
+  "Yamaha Pro",
+  "Zigen",
+];
 
 function descendingComparator(a, b, orderBy) {
   if (b[orderBy] < a[orderBy]) {
@@ -159,6 +308,7 @@ const PanelTable = () => {
   });
   const [isRecordSelected, setIsRecordSelected] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isReRender, setIsReRender] = useState(false);
 
   const debouncedSearchTerm = useDebounce(filterName, 500);
 
@@ -175,7 +325,7 @@ const PanelTable = () => {
   };
 
   const notifyError = () =>
-    toast.error("Error in Deleting Store", {
+    toast.error("Error in Deleting Item", {
       position: "top-right",
       autoClose: 5000,
       hideProgressBar: false,
@@ -187,7 +337,7 @@ const PanelTable = () => {
     });
 
   const notifySuccess = () =>
-    toast.success("Store Deleted Successfully", {
+    toast.success("Item Deleted Successfully", {
       position: "top-right",
       autoClose: 5000,
       hideProgressBar: false,
@@ -219,7 +369,7 @@ const PanelTable = () => {
         }),
       })
     );
-  }, [filters, debouncedSearchTerm, rowsPerPage, isSuccess]);
+  }, [filters, debouncedSearchTerm, rowsPerPage, isSuccess, isReRender]);
 
   useEffect(() => {
     socket.on("connect", () => {
@@ -362,8 +512,10 @@ const PanelTable = () => {
   const handleDelete = async () => {
     const result = await dispatch(deleteItem({ id: [selectedItem] }));
     handleClose();
+    handleCloseMenu();
     if (result.payload.success) {
       setIsSuccess(true);
+      setIsReRender(prev => !prev)
       notifySuccess();
     } else if (!result.payload.success) {
       notifyError();
@@ -375,8 +527,10 @@ const PanelTable = () => {
   const handleBulkDelete = async () => {
     const result = await dispatch(deleteItem({ id: selected }));
     handleClose();
+    handleCloseMenu();
     if (result.payload.success) {
       setIsSuccess(true);
+      setIsReRender(prev => !prev)
       notifySuccess();
     } else if (!result.payload.success) {
       notifyError();
@@ -501,6 +655,7 @@ const PanelTable = () => {
         </div>
       </div> */}
       <Container>
+        <ToastContainer />
         <ConfirmationModal
           title={"Are you sure you want to delete this information?"}
           open={openModal}
@@ -555,7 +710,7 @@ const PanelTable = () => {
                 if (selectedSite && obj.site !== selectedSite) {
                   return null;
                 }
-                return obj.brands.map((brand) => (
+                return brands.map((brand) => (
                   <MenuItem key={brand} value={brand}>
                     {brand}
                   </MenuItem>
@@ -616,6 +771,7 @@ const PanelTable = () => {
             filterName={filterName}
             onFilterName={handleFilterByName}
             selectedIds={selected}
+            isSearchable={true}
           />
           <TableContainer sx={{ minWidth: 800 }}>
             <Table>
@@ -682,7 +838,7 @@ const PanelTable = () => {
                           <TableCell align="left">{item.productName}</TableCell>
                           <TableCell align="left">{item.price}</TableCell>
                           <TableCell align="left">
-                            {item.availableUnits}
+                            {item.quantity}
                           </TableCell>
                           {/* 
                             <TableCell align="left">

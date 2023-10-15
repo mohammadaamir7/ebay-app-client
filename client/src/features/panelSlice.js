@@ -45,6 +45,26 @@ export const getListingsInfo = createAsyncThunk(
     }
 );
 
+export const getListingsBrands = createAsyncThunk(
+    'panel/getListingsBrands',
+    async (_, { rejectWithValue }) => {
+        try {
+            const response = await axios.get(
+              `${config.DOMAIN}${config.API_PREFIX}/sites/fetchListingsBrands`,
+              {
+                headers: {
+                  Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
+              }
+            );
+
+            return response.data;
+        } catch (err) {
+            return rejectWithValue(err.response.data);
+        }
+    }
+);
+
 export const getNewListings = createAsyncThunk(
     'panel/getNewListings',
     async ({ site }, { rejectWithValue }) => {
@@ -228,11 +248,54 @@ export const deleteStore = createAsyncThunk(
     }
 );
 
+export const deleteSupplier = createAsyncThunk(
+    'panelItem/deleteSupplier',
+    async ({id}, {rejectWithValue}) => {
+        try {
+            const response = await axios.delete(
+              `${config.DOMAIN}${config.API_PREFIX}/sites/supplier`,
+              { params: { ids: id } },
+              {
+                headers: {
+                  Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
+              }
+            );
+
+            return response.data;
+        } catch (err) {
+            return rejectWithValue(err.response.data);
+        }
+    }
+);
+
+export const fetchListings = createAsyncThunk(
+    'panelItem/fetchListings',
+    async (data, {rejectWithValue}) => {
+        try {
+            const response = await axios.get(
+              `${config.DOMAIN}${config.API_PREFIX}/sites/fetchListings`,
+              { params: { data } },
+              {
+                headers: {
+                  Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
+              }
+            );
+
+            return response.data;
+        } catch (err) {
+            return rejectWithValue(err.response.data);
+        }
+    }
+);
+
 const panelSlice = createSlice({
     name: 'panel',
     initialState: {
         pageItems: [],
         listings: [],
+        listingsBrands: [],
         suppliers: [],
         stores: [],
         newListings: [],
@@ -273,16 +336,15 @@ const panelSlice = createSlice({
             state.status = 'failed';
             state.error = payload;
         },
-        [getListingsInfo.pending]: (state, action) => {
+        [getListingsBrands.pending]: (state, action) => {
             state.status = 'loading';
         },
-        [getListingsInfo.fulfilled]: (state, { payload }) => {
+        [getListingsBrands.fulfilled]: (state, { payload }) => {
             state.status = 'succeeded';
         
-            state.listings = payload.items;
-            state.totalpages = Math.ceil(payload.total / state.pageLimit);
+            state.listingsBrands = payload.brands;
         },
-        [getListingsInfo.rejected]: (state, { payload }) => {
+        [getListingsBrands.rejected]: (state, { payload }) => {
             state.status = 'failed';
             state.error = payload;
         },
@@ -394,6 +456,26 @@ const panelSlice = createSlice({
         },
         [deleteStore.rejected]: (state, { payload }) => {
             state.deleteStore = 'Search Error';
+            state.error = payload;
+        },
+        [deleteSupplier.pending]: (state, action) => {
+            state.deleteSupplier = 'Loading...';
+        },
+        [deleteSupplier.fulfilled]: (state, { payload }) => {
+            state.deleteSupplier = `${payload} Results for stores`; 
+        },
+        [deleteSupplier.rejected]: (state, { payload }) => {
+            state.deleteSupplier = 'Search Error';
+            state.error = payload;
+        },
+        [fetchListings.pending]: (state, action) => {
+            state.fetchListings = 'Loading...';
+        },
+        [fetchListings.fulfilled]: (state, { payload }) => {
+            state.fetchListings = `${payload} Results for stores`; 
+        },
+        [fetchListings.rejected]: (state, { payload }) => {
+            state.fetchListings = 'Fetching Error';
             state.error = payload;
         }
     },

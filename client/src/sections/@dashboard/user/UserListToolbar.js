@@ -40,7 +40,7 @@ UserListToolbar.propTypes = {
   onFilterName: PropTypes.func,
 };
 
-export default function UserListToolbar({ numSelected, filterName, onFilterName, selectedIds }) {
+export default function UserListToolbar({ numSelected, filterName, onFilterName, selectedIds, isSearchable}) {
   const [openModal, setOpenModal] = useState(false);
   const handleOpen = () => setOpenModal(true);
   const handleClose = () => setOpenModal(false);
@@ -60,7 +60,7 @@ export default function UserListToolbar({ numSelected, filterName, onFilterName,
           {numSelected} selected
         </Typography>
       ) : (
-        <StyledSearch
+        isSearchable && <StyledSearch
           value={filterName}
           onChange={onFilterName}
           placeholder="Search"
@@ -72,20 +72,19 @@ export default function UserListToolbar({ numSelected, filterName, onFilterName,
         />
       )}
 
-      {numSelected > 0 ? (
-        <></>
-        // <Tooltip title="Delete">
-        //   <IconButton onClick={handleOpen}>
-        //     <Iconify icon="eva:trash-2-fill" />
-        //   </IconButton>
-        // </Tooltip>
+      {/* {numSelected > 0 ? (
+        <Tooltip title="Delete">
+          <IconButton onClick={handleOpen}>
+            <Iconify icon="eva:trash-2-fill" />
+          </IconButton>
+        </Tooltip>
       ) : (
         <Tooltip title="Filter list">
           <IconButton>
             <Iconify icon="ic:round-filter-list" />
           </IconButton>
         </Tooltip>
-      )}
+      )} */}
     </StyledRoot>
   );
 }

@@ -9,8 +9,10 @@ import {
   updateItemEditPageActive,
   getListingsInfo,
   getSuppliers,
+  deleteSupplier,
 } from "../../features/panelSlice";
-
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import "./SuppliersTable.css";
 import io from "socket.io-client";
 import config from "../../config.json";
@@ -46,6 +48,7 @@ import Scrollbar from "../scrollbar";
 import { UserListHead, UserListToolbar } from "../../sections/@dashboard/user";
 // mock
 import USERLIST from "../../_mock/user";
+import ConfirmationModal from "../modals/ConfirmationModal";
 
 // ----------------------------------------------------------------------
 
@@ -94,6 +97,22 @@ const limit = 10;
 const PanelTable = () => {
   const socket = io(`${config.DOMAIN}`);
 
+  const [open, setOpen] = useState(null);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [openModal, setOpenModal] = React.useState(false);
+  const handleOpen = () => setOpenModal(true);
+  const handleClose = () => setOpenModal(false);
+  const [isReRender, setIsReRender] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [isRecordSelected, setIsRecordSelected] = useState(false);
+
+  const [page, setPage] = useState(0);
+  const [order, setOrder] = useState("asc");
+  const [selected, setSelected] = useState([]);
+  const [orderBy, setOrderBy] = useState("name");
+  const [filterName, setFilterName] = useState("");
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+
   const dispatch = useDispatch();
   const {
     pageItems,
@@ -119,22 +138,32 @@ const PanelTable = () => {
     } else {
       dispatch(getSuppliers({ page: currentPage, limit: limit }));
     }
-  }, [currentPage]);
+  }, [currentPage, isSuccess, rowsPerPage, isReRender]);
 
-  const [open, setOpen] = useState(null);
-  const [selectedItem, setSelectedItem] = useState(null);
 
-  const [page, setPage] = useState(0);
+  const notifyError = () =>
+    toast.error("Error in Deleting Supplier", {
+      position: "top-right",
+      autoClose: 5000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+      progress: undefined,
+      theme: "colored",
+    });
 
-  const [order, setOrder] = useState("asc");
-
-  const [selected, setSelected] = useState([]);
-
-  const [orderBy, setOrderBy] = useState("name");
-
-  const [filterName, setFilterName] = useState("");
-
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const notifySuccess = () =>
+    toast.success("Supplier Deleted Successfully", {
+      position: "top-right",
+      autoClose: 5000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+      progress: undefined,
+      theme: "colored",
+    });
 
   const handleOpenMenu = (event, id) => {
     setOpen(event.currentTarget);
@@ -232,9 +261,45 @@ const PanelTable = () => {
     navigate("/item-edit");
   };
 
+  const handleDelete = async () => {
+    const result = await dispatch(deleteSupplier({ id: [selectedItem] }));
+    handleClose();
+    handleCloseMenu();
+    if (result.payload.success) {
+      setIsSuccess(true);
+      setIsReRender(prev => !prev)
+      notifySuccess();
+    } else if (!result.payload.success) {
+      notifyError();
+      setIsSuccess(false);
+    }
+    setIsRecordSelected(false)
+  };
+
+  const handleBulkDelete = async () => {
+    const result = await dispatch(deleteSupplier({ id: selected }));
+    handleClose();
+    if (result.payload.success) {
+      setIsSuccess(true);
+      setIsReRender(prev => !prev)
+      notifySuccess();
+    } else if (!result.payload.success) {
+      notifyError();
+      setIsSuccess(false);
+    }
+    setIsRecordSelected(false)
+  };
+
   return (
     <>
       <Container>
+        <ToastContainer/>
+        <ConfirmationModal
+          title={"Are you sure you want to delete this information?"}
+          open={openModal}
+          handleClose={handleClose}
+          handleSubmit={isRecordSelected ? handleBulkDelete : handleDelete}
+        />
         <Stack
           direction="row"
           alignItems="center"
@@ -268,7 +333,6 @@ const PanelTable = () => {
                 onSelectAllClick={handleSelectAllClick}
               />
               <TableBody>
-                {console.log("supp : ", suppliers)}
                 {suppliers &&
                   suppliers.map((item) => (
                     <TableRow
@@ -343,7 +407,7 @@ const PanelTable = () => {
           Edit
         </MenuItem>
 
-        <MenuItem sx={{ color: "error.main" }}>
+        <MenuItem onClick={handleOpen} sx={{ color: "error.main" }}>
           <Iconify icon={"eva:trash-2-outline"} sx={{ mr: 2 }} />
           Delete
         </MenuItem>

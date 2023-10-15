@@ -82,7 +82,7 @@ const ListingEditOptions = () => {
     });
 
   const notifySuccess = () =>
-    toast.error("Item Updated Successfully", {
+    toast.success("Item Updated Successfully", {
       position: "top-right",
       autoClose: 5000,
       hideProgressBar: false,
@@ -112,11 +112,17 @@ const ListingEditOptions = () => {
     dispatch(updateField({ key, val: e.target.value }));
   };
 
-  const saving = (e) => {
+  const saving = async (e) => {
     e.preventDefault();
-    dispatch(updateListing({ id, data: { ...data, fixedPrice } }));
+    const result = await dispatch(
+      updateListing({ id, data: { ...data, fixedPrice } })
+    );
+    if (result?.payload?.success) {
+      notifySuccess();
+    } else if(!result?.payload?.success){
+      notifyError();
+    }
     handleClose();
-    notifySuccess();
   };
 
   const handleSubmit = (event) => {

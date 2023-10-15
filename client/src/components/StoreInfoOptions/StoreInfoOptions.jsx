@@ -32,6 +32,158 @@ import config from "../../config.json";
 import ConfirmationModal from "../modals/ConfirmationModal";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { fetchListings } from "../../features/panelSlice";
+
+const brands = [
+  "2GIG",
+  "Active Thermal Mgmt",
+  "ACURUS",
+  "ALARM.COM",
+  "Altronix",
+  "Amazon",
+  "American Recorder Technology",
+  "Amplifier Technologies",
+  "Apple",
+  "Araknis Networks",
+  "Arlington",
+  "Arlo Network Cameras",
+  "Atlona",
+  "Attero Tech",
+  "AudioControl",
+  "August",
+  "Autonomic",
+  "AVPro Edge",
+  "BenQ",
+  "Binary",
+  "BrightSign",
+  "Calrad Electronics",
+  "Carlon",
+  "Chief",
+  "Clare Controls",
+  "ClareVision",
+  "ClearOne",
+  "Cleerline",
+  "Da Lite",
+  "Definitive Technology",
+  "Denon",
+  "Digital Watchdog",
+  "Direct Connect",
+  "DirectUPS",
+  "DoorBird",
+  "Dottie",
+  "Dragonfly",
+  "Dynamat",
+  "Earthquake Sound",
+  "Ecobee",
+  "EERO",
+  "ELK Products",
+  "Episode",
+  "Evolution by Vanco",
+  "Exacq",
+  "Flexson",
+  "Fortress Chairs",
+  "FSR Inc",
+  "Furman",
+  "FX LUMINAIRE",
+  "Google",
+  "GRI",
+  "Holland Electronics",
+  "Hosa",
+  "House Logix",
+  "Hunt",
+  "INNEOS",
+  "IOGear",
+  "iPort",
+  "Jasco",
+  "Jensen Transformers",
+  "Just Add Power",
+  "JVC",
+  "Kantech",
+  "KEF",
+  "Klipsch",
+  "Kwikset",
+  "Labor Saving Devices",
+  "Legion",
+  "Leviton Security & Automation",
+  "LG COMMERCIAL",
+  "LG Electronics",
+  "LiftMaster",
+  "LINEAR LLC",
+  "Louroe",
+  "Luma Surveillance",
+  "Lutron",
+  "Luxul",
+  "MantelMount",
+  "Marantz",
+  "Middle Atlantic",
+  "Midlite Products",
+  "Nest Labs",
+  "ON-Q-Legrand",
+  "OPTEX",
+  "OvrC",
+  "Panamax",
+  "Parasound",
+  "Planar",
+  "Planet Waves",
+  "Platinum Tools",
+  "Primacoustic",
+  "Pro Control",
+  "Qolsys",
+  "QSC",
+  "Rachio",
+  "Rack-a-Tiers",
+  "Raytec",
+  "Resolution Products",
+  "Ring",
+  "Rockustics",
+  "Roku",
+  "Router Limits",
+  "RTI",
+  "Russound",
+  "Samsung",
+  "Sanus",
+  "Screen Innovations",
+  "Seco-larm",
+  "Sense",
+  "SEURA",
+  "Shure",
+  "SolidDrive",
+  "Sonance Outdoor Products",
+  "Sonos",
+  "SONY",
+  "Sony Commercial",
+  "SoundTube",
+  "Spinetix",
+  "Strong Mounts",
+  "Strong Racks",
+  "SunBrite",
+  "Sunfire",
+  "Telguard",
+  "Total Control Light",
+  "TP-Link",
+  "TRIAD",
+  "Triplett",
+  "Ubiquiti",
+  "Universal Power Group",
+  "Universal Remote Control",
+  "Vanco",
+  "Veracity",
+  "Versiton",
+  "Vertical Cable",
+  "Victrola",
+  "Visualint",
+  "Vivitek",
+  "Vivotek",
+  "WattBox",
+  "Williams Sound",
+  "Wilson Electronics",
+  "Wirepath",
+  "Xantech",
+  "Yale Security",
+  "Yamaha Electronics",
+  "Yamaha Pro",
+  "Zigen",
+];
 
 function Copyright(props) {
   return (
@@ -61,6 +213,7 @@ const StoreInfoOptions = () => {
   const { id } = useParams();
   const dispatch = useDispatch();
   const [currentSupplier, setCurrentSupplier] = useState("");
+  const [currentBrand, setCurrentBrand] = useState("");
 
   const { status, data, error } = useSelector((state) => state.panelItem);
   const [isPriceRangeMarkUp, setIsPriceRangeMarkUp] = useState(
@@ -80,8 +233,8 @@ const StoreInfoOptions = () => {
   const handleOpen = () => setOpenModal(true);
   const handleClose = () => setOpenModal(false);
 
-  const notifyError = () =>
-    toast.error("Error in Updating Item", {
+  const notifyError = (message) =>
+    toast.error(message, {
       position: "top-right",
       autoClose: 5000,
       hideProgressBar: false,
@@ -92,8 +245,8 @@ const StoreInfoOptions = () => {
       theme: "colored",
     });
 
-  const notifySuccess = () =>
-    toast.success("Item Updated Successfully", {
+  const notifySuccess = (message) =>
+    toast.success(message, {
       position: "top-right",
       autoClose: 5000,
       hideProgressBar: false,
@@ -236,6 +389,9 @@ const StoreInfoOptions = () => {
 
     socket.on("sync-listings", (data) => {
       console.log(data);
+      if (data.success) {
+        notifySuccess(data.message);
+      }
     });
 
     return () => {
@@ -245,7 +401,7 @@ const StoreInfoOptions = () => {
 
   if (!status) return <h3>Item not found!</h3>;
   else if (status === "loading") return <h3>Loading...</h3>;
-  else if (status === "failed") notifyError();
+  else if (status === "failed") notifyError("Error in Processing Request");
 
   const changeInput = (e, key) => {
     e.preventDefault();
@@ -271,8 +427,10 @@ const StoreInfoOptions = () => {
       })
     );
     handleClose();
-    if(result?.payload?.success){
-      notifySuccess();
+    if (result?.payload?.success) {
+      notifySuccess("Store Info Updated Successfully.");
+    } else if (!result?.payload?.success) {
+      notifyError("Error in Updating Store Info.");
     }
   };
 
@@ -286,7 +444,50 @@ const StoreInfoOptions = () => {
   };
 
   const handleSync = () => {
-    socket.emit("sync-listings", { site: currentSupplier, store: storeEmail });
+    socket.emit("sync-listings", {
+      site: currentSupplier,
+      store: storeEmail,
+      config: { ...ScrapperConfig, brand: currentBrand },
+    });
+  };
+
+  const fetchListing = async () => {
+    const result = await dispatch(fetchListings({ store: data?.email }));
+    if (result?.payload?.success) {
+      notifySuccess(result?.payload?.message);
+    } else if (!result?.payload?.success) {
+      notifyError(result?.payload?.message);
+    }
+  };
+
+  const ScrapperConfig = {
+    brand: "Araknis Networks",
+    site: "volutone",
+    itemPerPage: 96,
+    login: {
+      user: "GLC",
+      pass: "Volutone",
+    },
+    delay: {
+      delayOn: "item",
+      delayTime: 10,
+    },
+    interception: false,
+    status: {
+      text: "Idle",
+      pages: 0,
+      items: 0,
+    },
+    control: {
+      action: "start",
+      type: "",
+      paused: false,
+      instance: false,
+    },
+    checkpoint: {
+      brand: "Araknis Networks",
+      page: "1",
+    },
   };
 
   return (
@@ -299,7 +500,7 @@ const StoreInfoOptions = () => {
             Title, Fetch listings data and its format.
           </p>
         </Grid>
-        <Grid md={8} sx={{ mb: 3}}>
+        <Grid md={8} sx={{ mb: 3 }}>
           <div className="card shadow mb-3">
             <ToastContainer />
             <ConfirmationModal
@@ -341,18 +542,11 @@ const StoreInfoOptions = () => {
                         />
                       </Grid>
                       <Button
-                        onClick={() => {}}
                         sx={{ m: 3, mr: 0 }}
                         variant="contained"
+                        onClick={fetchListing}
                       >
-                        Fetch
-                      </Button>
-                      <Button
-                        onClick={() => {}}
-                        sx={{ m: 3 }}
-                        variant="contained"
-                      >
-                        Format
+                        Fetch Listings
                       </Button>
                     </Grid>
                   </Box>
@@ -385,12 +579,15 @@ const StoreInfoOptions = () => {
                   <Button
                     variant="contained"
                     onClick={handleSync}
-                    disabled={currentSupplier === ""}
+                    disabled={currentSupplier === "" || currentBrand === ""}
                     sx={{ ml: "auto" }}
                   >
                     Sync Listings
                   </Button>
-                  <Stack direction="row" sx={{ mb: 3, mr: "auto", mt: "-30px" }}>
+                  <Stack
+                    direction="row"
+                    sx={{ mb: 3, mr: "auto", mt: "-30px" }}
+                  >
                     <Switch
                       checked={isPriceRangeMarkUp}
                       onChange={(e) => handleIsMarkUpChange(e)}
@@ -431,10 +628,32 @@ const StoreInfoOptions = () => {
                               label="Supplier"
                               onChange={handleChange}
                             >
+                              <MenuItem value={""}>None</MenuItem>
                               {data?.Suppliers?.map((supplier, index) => (
                                 <MenuItem value={supplier.name}>
                                   {supplier.name}
                                 </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={6} sx={{ mt: 5, mb: 2 }}>
+                        <Box>
+                          <FormControl fullWidth>
+                            <InputLabel id="demo-simple-select-label">
+                              Brands
+                            </InputLabel>
+                            <Select
+                              labelId="demo-simple-select-label"
+                              id="demo-simple-select"
+                              value={currentBrand}
+                              label="Brand"
+                              onChange={(e) => setCurrentBrand(e.target.value)}
+                            >
+                              <MenuItem value={""}>None</MenuItem>
+                              {brands?.map((brand) => (
+                                <MenuItem value={brand}>{brand}</MenuItem>
                               ))}
                             </Select>
                           </FormControl>
@@ -475,7 +694,7 @@ const StoreInfoOptions = () => {
                               }
                             />
                           </Grid>
-                          <Grid item xs={6} sx={{ mt: 4 }}>
+                          <Grid item xs={6} sx={{ mt: 5 }}>
                             <TextField
                               fullWidth
                               name="quantityOffset"

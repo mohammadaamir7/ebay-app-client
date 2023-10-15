@@ -12,6 +12,7 @@ import {
   getStores,
   getSuppliers,
   deleteListing,
+  getListingsBrands,
 } from "../../features/panelSlice";
 
 import "./EbayItemsTable.css";
@@ -181,9 +182,11 @@ const PanelTable = () => {
     price: null,
     quantity: null,
     soldQuantity: null,
+    brand: null
   });
   const [isRecordSelected, setIsRecordSelected] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isReRender, setIsReRender] = useState(false);
 
   const debouncedSearchTerm = useDebounce(filterName, 500);
 
@@ -210,6 +213,7 @@ const PanelTable = () => {
     listings,
     stores,
     suppliers,
+    listingsBrands
   } = useSelector((state) => state.panel);
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -245,20 +249,21 @@ const PanelTable = () => {
   useEffect(() => {
     dispatch(getStores({ page: currentPage, limit: limit }));
     dispatch(getSuppliers({ page: currentPage, limit: limit }));
+    dispatch(getListingsBrands());
   }, [currentPage]);
 
   useEffect(() => {
     dispatch(
       getListingsInfo({
         page: currentPage,
-        limit: limit,
+        limit: rowsPerPage,
         filters: JSON.stringify({
           ...filters,
           searchTerm: debouncedSearchTerm,
         }),
       })
     );
-  }, [filters, debouncedSearchTerm, isSuccess]);
+  }, [filters, debouncedSearchTerm, isSuccess, rowsPerPage, isReRender]);
 
   useEffect(() => {
     socket.on("connect", () => {
@@ -373,6 +378,7 @@ const PanelTable = () => {
   const handleSync = () => {
     socket.emit("sync-listings", { site: selectedSite });
   };
+
   const handleImport = () => {};
   const handleExport = () => {};
 
@@ -384,8 +390,10 @@ const PanelTable = () => {
   const handleDelete = async () => {
     const result = await dispatch(deleteListing({ id: selectedItem }));
     handleClose();
+    handleCloseMenu();
     if (result.payload.success) {
       setIsSuccess(true);
+      setIsReRender(prev => !prev)
       notifySuccess();
     } else if (!result.payload.success) {
       notifyError();
@@ -397,8 +405,10 @@ const PanelTable = () => {
   const handleBulkDelete = async () => {
     const result = await dispatch(deleteListing({ id: selected }));
     handleClose();
+    handleCloseMenu();
     if (result.payload.success) {
       setIsSuccess(true);
+      setIsReRender(prev => !prev)
       notifySuccess();
     } else if (!result.payload.success) {
       notifyError();
@@ -471,6 +481,25 @@ const PanelTable = () => {
             ))}
           </Select>
         </FormControl>
+        <FormControl sx={{ m: 1, width: 190, mb: 3 }}>
+          <InputLabel id="demo-multiple-checkbox-label">Brand</InputLabel>
+          <Select
+            labelId="demo-multiple-checkbox-label"
+            id="demo-multiple-checkbox"
+            value={filters.brand}
+            name="brand"
+            onChange={handleChange}
+            input={<OutlinedInput label="Tag" />}
+            MenuProps={MenuProps}
+          >
+            <MenuItem value="">None</MenuItem>
+            {listingsBrands && listingsBrands?.map((brand) => (
+              <MenuItem key={brand} value={brand}>
+                <ListItemText primary={brand} />
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
         <FormControl sx={{ m: 1, width: 150 }}>
           <InputLabel id="demo-simple-select-required-label">Price</InputLabel>
           <Select
@@ -529,7 +558,7 @@ const PanelTable = () => {
             ))}
           </Select>
         </FormControl>
-        <br/>
+        <br />
         <Button
           onClick={handleOpen}
           variant="outlined"
@@ -544,6 +573,7 @@ const PanelTable = () => {
             filterName={filterName}
             onFilterName={handleFilterByName}
             selectedIds={selected}
+            isSearchable={true}
           />
           <ToastContainer />
 
@@ -584,22 +614,33 @@ const PanelTable = () => {
                           </TableCell>
 
                           <TableCell align="left">{item.brand}</TableCell>
-                          <TableCell className="ebay-url" align="left" onClick={() => window.open(`https://www.ebay.com/itm/${item.itemId}`, '_blank')}>{item.itemId}</TableCell>
+                          <TableCell
+                            className="ebay-url"
+                            align="left"
+                            onClick={() =>
+                              window.open(
+                                `https://www.ebay.com/itm/${item.itemId}`,
+                                "_blank"
+                              )
+                            }
+                          >
+                            {item.itemId}
+                          </TableCell>
 
                           <TableCell align="left">{item.sku}</TableCell>
                           <TableCell align="left">{item.title}</TableCell>
                           <TableCell align="left">{item.startPrice}</TableCell>
                           <TableCell align="left">{item.quantity}</TableCell>
 
-                            <TableCell align="left">
-                              <Label
-                                color={
-                                  (item.synced === false && "error") || "success"
-                                }
-                              >
-                                {item.synced ? "Synced" : "Un-Synced"}
-                              </Label>
-                            </TableCell>
+                          <TableCell align="left">
+                            <Label
+                              color={
+                                (item.synced === false && "error") || "success"
+                              }
+                            >
+                              {item.synced ? "Synced" : "Un-Synced"}
+                            </Label>
+                          </TableCell>
 
                           <TableCell align="right">
                             <IconButton
@@ -625,10 +666,10 @@ const PanelTable = () => {
           <TablePagination
             rowsPerPageOptions={[25, 50, 100]}
             component="div"
-            count={listings?.length}
+            count={listings.length}
             rowsPerPage={rowsPerPage}
             page={page}
-            onPageChange={handlePage}
+            onPageChange={handleChangePage}
             onRowsPerPageChange={handleChangeRowsPerPage}
           />
         </Card>
