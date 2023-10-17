@@ -98,7 +98,7 @@ function applySortFilter(array, comparator, query) {
 const limit = 10;
 
 const PanelTable = () => {
-  const socket = io(`${config.DOMAIN}`);
+  // const socket = io(`${config.DOMAIN}`);
 
   const dispatch = useDispatch();
   const {
@@ -268,9 +268,9 @@ const PanelTable = () => {
 
   const handleSearch = () => {};
 
-  const handleSync = () => {
-    socket.emit("sync-listings", { site: selectedSite });
-  };
+  // const handleSync = () => {
+  //   socket.emit("sync-listings", { site: selectedSite });
+  // };
   const handleImport = () => {};
   const handleExport = () => {};
 

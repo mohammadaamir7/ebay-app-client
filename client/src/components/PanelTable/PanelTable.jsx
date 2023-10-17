@@ -276,7 +276,7 @@ const quantity = {
 };
 
 const PanelTable = () => {
-  const socket = io(`${config.DOMAIN}`);
+  // const socket = io(`${config.DOMAIN}`);
 
   const dispatch = useDispatch();
   const {
@@ -371,32 +371,32 @@ const PanelTable = () => {
     );
   }, [filters, debouncedSearchTerm, rowsPerPage, isSuccess, isReRender]);
 
-  useEffect(() => {
-    socket.on("connect", () => {
-      console.log("Connected to server");
-    });
+  // useEffect(() => {
+  //   socket.on("connect", () => {
+  //     console.log("Connected to server");
+  //   });
 
-    socket.on("disconnect", () => {
-      console.log("Disconnected from server");
-    });
+  //   socket.on("disconnect", () => {
+  //     console.log("Disconnected from server");
+  //   });
 
-    socket.on("sync-listings", (data) => {
-      console.log(data);
-      dispatch(
-        getSearchInfo({
-          term: searchTerm,
-          site: selectedSite,
-          brand: selectedBrand,
-          page: currentPage,
-          limit: limit,
-        })
-      );
-    });
+  //   socket.on("sync-listings", (data) => {
+  //     console.log(data);
+  //     dispatch(
+  //       getSearchInfo({
+  //         term: searchTerm,
+  //         site: selectedSite,
+  //         brand: selectedBrand,
+  //         page: currentPage,
+  //         limit: limit,
+  //       })
+  //     );
+  //   });
 
-    return () => {
-      socket.disconnect();
-    };
-  }, [socket]);
+  //   return () => {
+  //     socket.disconnect();
+  //   };
+  // }, [socket]);
 
   const handleOpenMenu = (event, id) => {
     setOpen(event.currentTarget);
@@ -500,9 +500,9 @@ const PanelTable = () => {
     );
   };
 
-  const handleSync = () => {
-    socket.emit("sync-listings", { site: selectedSite });
-  };
+  // const handleSync = () => {
+  //   socket.emit("sync-listings", { site: selectedSite });
+  // };
 
   const handleItemEditBtn = (item) => {
     dispatch(updateItemEditPageActive(item));

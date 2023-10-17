@@ -290,6 +290,27 @@ export const fetchListings = createAsyncThunk(
     }
 );
 
+export const syncListings = createAsyncThunk(
+    'panelItem/syncListings',
+    async (data, {rejectWithValue}) => {
+        try {
+            const response = await axios.post(
+              `${config.DOMAIN}${config.API_PREFIX}/sites/syncListings`,
+              { ...data },
+              {
+                headers: {
+                  Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
+              }
+            );
+
+            return response.data;
+        } catch (err) {
+            return rejectWithValue(err.response.data);
+        }
+    }
+);
+
 const panelSlice = createSlice({
     name: 'panel',
     initialState: {
@@ -468,14 +489,14 @@ const panelSlice = createSlice({
             state.deleteSupplier = 'Search Error';
             state.error = payload;
         },
-        [fetchListings.pending]: (state, action) => {
-            state.fetchListings = 'Loading...';
+        [syncListings.pending]: (state, action) => {
+            state.syncListings = 'Loading...';
         },
-        [fetchListings.fulfilled]: (state, { payload }) => {
-            state.fetchListings = `${payload} Results for stores`; 
+        [syncListings.fulfilled]: (state, { payload }) => {
+            state.syncListings = `${payload} Results for stores`; 
         },
-        [fetchListings.rejected]: (state, { payload }) => {
-            state.fetchListings = 'Fetching Error';
+        [syncListings.rejected]: (state, { payload }) => {
+            state.syncListings = 'Fetching Error';
             state.error = payload;
         }
     },

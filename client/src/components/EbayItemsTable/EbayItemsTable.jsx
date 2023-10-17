@@ -163,7 +163,7 @@ const style = {
 };
 
 const PanelTable = () => {
-  const socket = io(`${config.DOMAIN}`);
+  // const socket = io(`${config.DOMAIN}`);
 
   const [openModal, setOpenModal] = React.useState(false);
   const handleOpen = () => setOpenModal(true);
@@ -265,23 +265,23 @@ const PanelTable = () => {
     );
   }, [filters, debouncedSearchTerm, isSuccess, rowsPerPage, isReRender]);
 
-  useEffect(() => {
-    socket.on("connect", () => {
-      console.log("Connected to server");
-    });
+  // useEffect(() => {
+  //   socket.on("connect", () => {
+  //     console.log("Connected to server");
+  //   });
 
-    socket.on("disconnect", () => {
-      console.log("Disconnected from server");
-    });
+  //   socket.on("disconnect", () => {
+  //     console.log("Disconnected from server");
+  //   });
 
-    socket.on("sync-listings", (data) => {
-      console.log(data);
-    });
+  //   socket.on("sync-listings", (data) => {
+  //     console.log(data);
+  //   });
 
-    return () => {
-      socket.disconnect();
-    };
-  }, [socket]);
+  //   return () => {
+  //     socket.disconnect();
+  //   };
+  // }, [socket]);
 
   const handleOpenMenu = (event, id) => {
     setOpen(event.currentTarget);
@@ -375,9 +375,9 @@ const PanelTable = () => {
 
   const handleSearch = () => {};
 
-  const handleSync = () => {
-    socket.emit("sync-listings", { site: selectedSite });
-  };
+  // const handleSync = () => {
+  //   socket.emit("sync-listings", { site: selectedSite });
+  // };
 
   const handleImport = () => {};
   const handleExport = () => {};
