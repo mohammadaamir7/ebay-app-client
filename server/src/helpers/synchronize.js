@@ -8,9 +8,9 @@ const {
   fetchListingsAndPopulateDB,
 } = require("./ebayHelper");
 
-exports.synchronizeData = async (store, supplier, oAuthToken) => {
+exports.synchronizeData = async (store, supplier, brand, oAuthToken) => {
   try {
-    const items = await Item.find({ site: supplier });
+    const items = await Item.find({ brand: brand });
     // const isItemsFetched = await fetchListingsAndPopulateDB(store, supplier, oAuthToken);
 
     // if (isItemsFetched) {

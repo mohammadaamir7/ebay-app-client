@@ -4,6 +4,7 @@ const {
   addItem,
   fetchListingsAndPopulateDB,
 } = require("../../helpers/ebayHelper");
+const { synchronizeData } = require("../../helpers/synchronize");
 const EbayItems = require("../../models/EbayItems");
 const Item = require("../../models/Item");
 const ScraperConfig = require("../../models/ScraperConfig");
@@ -129,6 +130,23 @@ exports.fetchListingsBrands = async (req, res) => {
     const brands = [...new Set((await EbayItems.find({ }, "brand")).map(rec => rec.brand))];
 
     res.status(200).json({ success: true, message: "Listings Fetched Successfully", brands });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.syncListings = async (req, res) => {
+  const { site, store, config } = req.body;
+  console.log('params : ', req.body)
+  try {
+    const storeData = await Store.findOne({ email: store });
+    const { scrape } = require(`../../scrapers/${site}`);
+
+    // await scrape(config)
+    await synchronizeData(store, site, config?.brand, storeData?.oAuthToken);
+
+    res.status(200).json({ success: true, message: "Listings Synced Successfully" });
   } catch (err) {
     console.log(err);
     res.status(500).json({ success: false, message: err.message });
@@ -319,11 +337,7 @@ exports.sendListingInfo = async (req, res) => {
   try {
     const item = await EbayItems.findById(id);
     const itemInfo = await Item.findOne({
-      itemNumber: trimModelNumber(
-        item?.item[0]?.ItemSpecifics[0]?.NameValueList.find(
-          (val) => val.Name[0].toLowerCase() === "model"
-        ).Value[0]
-      ),
+      itemNumber: item?.sku
     });
 
     const listing = {

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { sendItems, sendItemInfo, updateItemInfo, sendSiteInfo, sendSearchInfo, sendListingInfo, sendListingSearchInfo, sendListings, updateListingInfo, addSupplier, sendSuppliers, sendSupplierInfo, addStore, sendStores, sendStoreInfo, updateStoreInfo, sendNewListings, addNewListings, deleteListing, deleteItem, deleteStore, fetchListings, deleteSupplier, fetchListingsBrands } = require('./site.controller');
+const { sendItems, sendItemInfo, updateItemInfo, sendSiteInfo, sendSearchInfo, sendListingInfo, sendListingSearchInfo, sendListings, updateListingInfo, addSupplier, sendSuppliers, sendSupplierInfo, addStore, sendStores, sendStoreInfo, updateStoreInfo, sendNewListings, addNewListings, deleteListing, deleteItem, deleteStore, fetchListings, deleteSupplier, fetchListingsBrands, syncListings } = require('./site.controller');
 const { queryhandler } = require('../../middlewares/queryHandler');
 
 router.post('/addSupplier', addSupplier);
@@ -26,6 +26,7 @@ router.get('/search', sendSearchInfo);
 router.get('/searchListings', sendListingSearchInfo);
 router.get('/fetchListings', fetchListings);
 router.get('/fetchListingsBrands', fetchListingsBrands);
+router.post('/syncListings', syncListings);
 
 router.delete('/listings', deleteListing);
 router.delete('/items', deleteItem);
